@@ -308,7 +308,9 @@ function startFetching(){
 async function fetchMsgs(){
   if(!SHEET_URL) return;
   try{
-    const r=await fetch(`${SHEET_URL}?action=getMessages&userId=${me.id}`);
+    let _furl=SHEET_URL;try{const _c=JSON.parse(localStorage.getItem('tms_config'));if(_c&&_c.sheetUrl)_furl=_c.sheetUrl;}catch(e){}
+    if(!_furl)return;
+    const r=await fetch(`${_furl}?action=getMessages&userId=${me.id}`);
     const d=await r.json();
     if(d.messages && d.messages.length>msgCount){
       d.messages.slice(msgCount).forEach(m=>{
