@@ -193,6 +193,18 @@ function init(){
   startClock();
   fetchUpdates();
   setInterval(fetchUpdates, REFRESH);
+  // Refresh config display every 10s so admin changes reflect immediately
+  setInterval(function(){
+    try {
+      const fresh = JSON.parse(localStorage.getItem('tms_config'));
+      if(fresh) {
+        const title = `${fresh.eventName||'Parade TMS'} <span>// ${fresh.commander||'COMMANDER'}</span>`;
+        document.getElementById('event-title').innerHTML = title;
+        document.title = `EOC Dashboard — ${fresh.eventName||'TMS'}`;
+        if(!SHEET_URL && fresh.sheetUrl) location.reload(); // reload if URL just got added
+      }
+    } catch(e){}
+  }, 10000);
   document.getElementById('cmd-input').addEventListener('keydown',e=>{ if(e.key==='Enter') sendMessage(); });
   // restore log from session
   const saved = localStorage.getItem('parade_log_session');
@@ -387,7 +399,7 @@ async function sendMessage(){
   if(!body) return;
 
   const msg={
-    sender:CFG.commander||'COMMANDER',
+    sender:(function(){try{const c=JSON.parse(localStorage.getItem('tms_config'));return c&&c.commander?c.commander:'COMMANDER';}catch(e){return CFG.commander||'COMMANDER';}})(),
     post:'EOC',
     body,
     type:'commander',
