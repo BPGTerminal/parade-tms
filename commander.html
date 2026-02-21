@@ -122,14 +122,46 @@
 </header>
 
 <div id="map">
-  <!-- Layer Controls -->
-  <div id="layer-ctrl">
-    <button class="layer-btn active" id="btn-street" onclick="setLayer('street')">🗺 STREET</button>
-    <button class="layer-btn" id="btn-satellite" onclick="setLayer('satellite')">🛰 SATELLITE</button>
-    <button class="layer-btn" id="btn-topo" onclick="setLayer('topo')">⛰ TERRAIN</button>
-    <button class="layer-btn" id="btn-flood" onclick="toggleHazard('flood')">🌊 FLOOD</button>
-    <button class="layer-btn" id="btn-landslide" onclick="toggleHazard('landslide')">⚠ LANDSLIDE</button>
-    <button class="layer-btn" id="btn-storm" onclick="toggleHazard('storm')">🌀 STORM SURGE</button>
+  <!-- Map Controls -->
+  <div id="map-controls">
+    <button id="map-max-btn" onclick="toggleMapMax()" title="Maximize map">⛶ MAXIMIZE</button>
+    <button id="layer-toggle-btn" onclick="toggleLayerPanel()">🗺 LAYERS ▾</button>
+    <div id="layer-panel">
+      <div class="lp-section">
+        <div class="lp-label">BASE MAP</div>
+        <div class="lp-row" onclick="setLayer('street')">
+          <div class="lp-check on" id="chk-street">✓</div>
+          <span class="lp-name">🗺 Street Map</span>
+        </div>
+        <div class="lp-row" onclick="setLayer('satellite')">
+          <div class="lp-check" id="chk-satellite"></div>
+          <span class="lp-name">🛰 Satellite</span>
+        </div>
+        <div class="lp-row" onclick="setLayer('topo')">
+          <div class="lp-check" id="chk-topo"></div>
+          <span class="lp-name">⛰ Terrain / Topo</span>
+        </div>
+      </div>
+      <div class="lp-section">
+        <div class="lp-label">PHIVOLCS HAZARD OVERLAY</div>
+        <div class="lp-row" onclick="toggleHazard('flood')">
+          <div class="lp-check" id="chk-flood"></div>
+          <span class="lp-name">🌊 Flood Hazard</span>
+        </div>
+        <div class="lp-row" onclick="toggleHazard('landslide')">
+          <div class="lp-check" id="chk-landslide"></div>
+          <span class="lp-name">⚠ Landslide</span>
+        </div>
+        <div class="lp-row" onclick="toggleHazard('storm')">
+          <div class="lp-check" id="chk-storm"></div>
+          <span class="lp-name">🌀 Storm Surge</span>
+        </div>
+        <div style="padding:6px 0 2px;display:flex;align-items:center;gap:8px;">
+          <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);">OPACITY</span>
+          <input type="range" class="lp-opacity" id="hazard-opacity" min="10" max="90" value="65" oninput="setHazardOpacity(this.value)"/>
+        </div>
+      </div>
+    </div>
   </div>
   <!-- Hazard Legend -->
   <div id="hazard-legend">
@@ -343,11 +375,7 @@ function setLayer(key){
     });
   }, 300);
 
-  // Update button states
-  ['street','satellite','topo'].forEach(k=>{
-    const b = document.getElementById('btn-'+k);
-    if(b) b.className = 'layer-btn' + (k===key?' active':'');
-  });
+  updateBaseChecks(key);
 }
 
 function toggleHazard(key){
@@ -358,14 +386,14 @@ function toggleHazard(key){
   if(currentHazardKey === key){
     if(activeHazardLayer){ map.removeLayer(activeHazardLayer); activeHazardLayer=null; }
     currentHazardKey = null;
-    ['flood','landslide','storm'].forEach(k=>{ const b=document.getElementById('btn-'+k); if(b) b.className='layer-btn'; });
+    ['flood','landslide','storm'].forEach(k=>updateHazardCheck(k,false));
     legend.style.display='none';
     return;
   }
 
   // Remove previous hazard
   if(activeHazardLayer){ map.removeLayer(activeHazardLayer); activeHazardLayer=null; }
-  ['flood','landslide','storm'].forEach(k=>{ const b=document.getElementById('btn-'+k); if(b) b.className='layer-btn'; });
+  ['flood','landslide','storm'].forEach(k=>updateHazardCheck(k,false));
 
   const hcfg = HAZARD_LAYERS[key];
   if(!hcfg) return;
@@ -387,7 +415,7 @@ function toggleHazard(key){
   }
 
   currentHazardKey = key;
-  if(btn) btn.className = 'layer-btn hazard-active';
+  updateHazardCheck(key, true);
 
   // Show legend
   document.getElementById('leg-title').textContent = hcfg.label;
