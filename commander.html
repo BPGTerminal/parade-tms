@@ -343,6 +343,12 @@ function updatePersonnel(list){
     online: p.online===true || p.online==='TRUE' || p.online==='true'
   }));
   list.forEach(p=>{
+    const existing = personnelData[p.id];
+    // If we already have this person with real GPS, don't overwrite with 0,0
+    if(existing && (existing.lat||0)!==0 && (existing.lng||0)!==0 && (p.lat||0)===0 && (p.lng||0)===0){
+      console.log('[TMS] Kept better GPS for',p.name,'- ignoring 0,0 duplicate row');
+      return; // skip this bad row
+    }
     personnelData[p.id]=p;
     console.log('[TMS] Person:',p.name,'online:',p.online,'lat:',p.lat,'lng:',p.lng);
   });
