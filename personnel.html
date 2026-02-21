@@ -172,9 +172,21 @@
 // LOAD CONFIG
 // ============================================================
 function loadConfig(){
+  const HARDCODED = {
+    eventName: "Pista i ang Kanyog'an",
+    commander: "PAGONG",
+    unit: "TRAFFIC MANAGEMENT TEAM",
+    lat: 8.7891, lng: 117.837,
+    sheetUrl: "https://script.google.com/macros/s/AKfycbwPQzBODQphcsr5XGbCnUdi542wxJOtcJPkSpl9FCyERs_8biTtPgOrN4vLGNXv00phjQ/exec",
+    teams: [
+      {name:"PARADE TEAM",       code:"PARADE26",  color:"#00e5ff"},
+      {name:"EVENT CENTER TEAM", code:"CENTER26",  color:"#00ff88"},
+      {name:"MOBILE TEAM",       code:"MOBILE26",  color:"#ff6b35"}
+    ]
+  };
   const s=localStorage.getItem('tms_config');
   return s ? JSON.parse(s) : {
-    eventName:"Brooke's Point Parade", lat:8.7891, lng:117.8370, sheetUrl:'',
+    eventName:HARDCODED.eventName, lat:HARDCODED.lat, lng:HARDCODED.lng, sheetUrl:HARDCODED.sheetUrl,
     teams:[
       {id:'T1',name:'PARADE TEAM',      code:'PARADE-01',color:'#00ff88'},
       {id:'T2',name:'EVENT CENTER TEAM',code:'CENTER-02',color:'#00e5ff'},
