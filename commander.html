@@ -136,7 +136,7 @@
   <div id="msg-log"><div class="empty">No messages yet.</div></div>
 
   <div class="compose">
-    <div class="compose-target">TO: <span id="target-label">ALL PERSONNEL</span></div>
+    <div class="compose-target">FROM: <span style="color:var(--green)" id="commander-label">PAGONG</span> &nbsp;|&nbsp; TO: <span id="target-label">ALL PERSONNEL</span></div>
     <div class="compose-row">
       <input type="text" id="cmd-input" placeholder="Type message or command..."/>
       <button id="send-btn" onclick="sendMessage()">SEND</button>
@@ -151,35 +151,52 @@
 
 <script>
 // ============================================================
-// LOAD CONFIG FROM ADMIN PANEL (localStorage)
 // ============================================================
+// CONFIG — loads from localStorage cache (populated by Admin)
+// Falls back to hardcoded defaults if nothing saved yet
+// ============================================================
+const HARDCODED_URL = "https://script.google.com/macros/s/AKfycbwPQzBODQphcsr5XGbCnUdi542wxJOtcJPkSpl9FCyERs_8biTtPgOrN4vLGNXv00phjQ/exec";
+
 function loadConfig(){
-  // HARDCODED DEFAULTS — always works even without Admin setup
-  const HARDCODED = {
+  try {
+    const s = localStorage.getItem('tms_config');
+    const cfg = s ? JSON.parse(s) : null;
+    if (cfg && cfg.sheetUrl) return cfg;
+  } catch(e){}
+  // Return hardcoded defaults
+  return {
     eventName: "Pista i ang Kanyog'an",
-    eventDate: "08-23 March 2026",
-    commander: "PAGONG",
-    unit: "TRAFFIC MANAGEMENT TEAM",
-    lat: 8.7891,
-    lng: 117.837,
-    sheetUrl: "https://script.google.com/macros/s/AKfycbwPQzBODQphcsr5XGbCnUdi542wxJOtcJPkSpl9FCyERs_8biTtPgOrN4vLGNXv00phjQ/exec",
+    eventDate: '08-23 March 2026',
+    commander: 'PAGONG',
+    unit: 'TRAFFIC MANAGEMENT TEAM',
+    lat: 8.7891, lng: 117.8370,
+    sheetUrl: HARDCODED_URL,
     teams: [
-      {name:"PARADE TEAM",      code:"PARADE26",  color:"#00e5ff"},
-      {name:"EVENT CENTER TEAM",code:"CENTER26",  color:"#00ff88"},
-      {name:"MOBILE TEAM",      code:"MOBILE26",  color:"#ff6b35"}
+      {name:'PARADE TEAM',       code:'PARADE26', color:'#00e5ff'},
+      {name:'EVENT CENTER TEAM', code:'CENTER26', color:'#00ff88'},
+      {name:'MOBILE TEAM',       code:'MOBILE26', color:'#ff6b35'}
     ]
   };
-  const s = localStorage.getItem('tms_config');
-  return s ? JSON.parse(s) : {
-    eventName:HARDCODED.eventName, eventDate:HARDCODED.eventDate,
-    commander:HARDCODED.commander, unit:HARDCODED.unit,
-    lat:HARDCODED.lat, lng:HARDCODED.lng, sheetUrl:HARDCODED.sheetUrl,
-    teams:[
-      {id:'T1',name:'PARADE TEAM',      code:'PARADE-01',color:'#00ff88',desc:'Along parade route'},
-      {id:'T2',name:'EVENT CENTER TEAM',code:'CENTER-02',color:'#00e5ff',desc:'Event venue area'},
-      {id:'T3',name:'MOBILE TEAM',      code:'MOBILE-03',color:'#ff6b35',desc:'Roving / response'},
-    ]
-  };
+}
+
+// Fetch fresh settings from Sheet and refresh page config
+async function refreshConfigFromSheet() {
+  try {
+    const url = CFG.sheetUrl || HARDCODED_URL;
+    const res = await fetch(url + '?action=getSettings');
+    const data = await res.json();
+    const cfg = data.settings;
+    if (!cfg) return;
+    // Update cache
+    const merged = {...CFG, ...cfg, sheetUrl: url};
+    if (Array.isArray(cfg.teams)) merged.teams = cfg.teams;
+    localStorage.setItem('tms_config', JSON.stringify(merged));
+    // Update visible elements
+    const title = `${merged.eventName||'Parade TMS'} <span>// ${merged.commander||'PAGONG'}</span>`;
+    const el = document.getElementById('event-title');
+    if (el) el.innerHTML = title;
+    document.title = `EOC Dashboard — ${merged.eventName||'TMS'}`;
+  } catch(e){ console.log('Config refresh skipped:', e.message); }
 }
 
 const CFG = loadConfig();
@@ -208,6 +225,9 @@ function init(){
   startClock();
   fetchUpdates();
   setInterval(fetchUpdates, REFRESH);
+  // Pull fresh settings from Sheet every 30s so admin changes reflect
+  refreshConfigFromSheet();
+  setInterval(refreshConfigFromSheet, 30000);
   // Refresh config display every 10s so admin changes reflect immediately
   setInterval(function(){
     try {
@@ -215,6 +235,8 @@ function init(){
       if(fresh) {
         const title = `${fresh.eventName||'Parade TMS'} <span>// ${fresh.commander||'COMMANDER'}</span>`;
         document.getElementById('event-title').innerHTML = title;
+        const cmdLabel = document.getElementById('commander-label');
+        if(cmdLabel) cmdLabel.textContent = fresh.commander||'PAGONG';
         document.title = `EOC Dashboard — ${fresh.eventName||'TMS'}`;
         if(!SHEET_URL && fresh.sheetUrl) location.reload(); // reload if URL just got added
       }
@@ -414,7 +436,7 @@ async function sendMessage(){
   if(!body) return;
 
   const msg={
-    sender:(function(){try{const c=JSON.parse(localStorage.getItem('tms_config'));return c&&c.commander?c.commander:'COMMANDER';}catch(e){return CFG.commander||'COMMANDER';}})(),
+    sender:CFG.commander||'PAGONG',
     post:'EOC',
     body,
     type:'commander',

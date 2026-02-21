@@ -171,28 +171,46 @@
 // ============================================================
 // LOAD CONFIG
 // ============================================================
+// ============================================================
+// CONFIG — reads from localStorage (set by Admin panel)
+// Falls back to hardcoded defaults
+// ============================================================
+const HARDCODED_URL = "https://script.google.com/macros/s/AKfycbwPQzBODQphcsr5XGbCnUdi542wxJOtcJPkSpl9FCyERs_8biTtPgOrN4vLGNXv00phjQ/exec";
+
 function loadConfig(){
-  const HARDCODED = {
+  try {
+    const s = localStorage.getItem('tms_config');
+    const c = s ? JSON.parse(s) : null;
+    if (c && c.sheetUrl) return c;
+  } catch(e){}
+  return {
     eventName: "Pista i ang Kanyog'an",
-    commander: "PAGONG",
-    unit: "TRAFFIC MANAGEMENT TEAM",
-    lat: 8.7891, lng: 117.837,
-    sheetUrl: "https://script.google.com/macros/s/AKfycbwPQzBODQphcsr5XGbCnUdi542wxJOtcJPkSpl9FCyERs_8biTtPgOrN4vLGNXv00phjQ/exec",
+    eventDate: '08-23 March 2026',
+    commander: 'PAGONG',
+    lat: 8.7891, lng: 117.8370,
+    sheetUrl: HARDCODED_URL,
     teams: [
-      {name:"PARADE TEAM",       code:"PARADE26",  color:"#00e5ff"},
-      {name:"EVENT CENTER TEAM", code:"CENTER26",  color:"#00ff88"},
-      {name:"MOBILE TEAM",       code:"MOBILE26",  color:"#ff6b35"}
+      {name:'PARADE TEAM',       code:'PARADE26', color:'#00e5ff'},
+      {name:'EVENT CENTER TEAM', code:'CENTER26', color:'#00ff88'},
+      {name:'MOBILE TEAM',       code:'MOBILE26', color:'#ff6b35'}
     ]
   };
-  const s=localStorage.getItem('tms_config');
-  return s ? JSON.parse(s) : {
-    eventName:HARDCODED.eventName, lat:HARDCODED.lat, lng:HARDCODED.lng, sheetUrl:HARDCODED.sheetUrl,
-    teams:[
-      {id:'T1',name:'PARADE TEAM',      code:'PARADE-01',color:'#00ff88'},
-      {id:'T2',name:'EVENT CENTER TEAM',code:'CENTER-02',color:'#00e5ff'},
-      {id:'T3',name:'MOBILE TEAM',      code:'MOBILE-03',color:'#ff6b35'},
-    ]
-  };
+}
+
+// Refresh config from Sheet on load so team changes etc. are picked up
+async function refreshConfigFromSheet() {
+  try {
+    const url = CFG.sheetUrl || HARDCODED_URL;
+    const res = await fetch(url + '?action=getSettings');
+    const data = await res.json();
+    const cfg = data.settings;
+    if (!cfg) return;
+    const merged = {...CFG, ...cfg, sheetUrl: url};
+    if (Array.isArray(cfg.teams)) merged.teams = cfg.teams;
+    localStorage.setItem('tms_config', JSON.stringify(merged));
+    // Re-populate team dropdown
+    populateTeams(merged.teams || CFG.teams);
+  } catch(e){}
 }
 
 const CFG = loadConfig();
