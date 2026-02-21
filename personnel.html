@@ -366,22 +366,40 @@ function openCamera(){ document.getElementById('photo-input').click(); }
 function handlePhoto(inp){
   if(!inp.files||!inp.files[0]) return;
   const file=inp.files[0];
+  sysMsg('Compressing photo...');
 
-  // Check size — Google Apps Script has a 50MB POST limit, keep it reasonable
-  if(file.size > 3*1024*1024){
-    sysMsg('Photo is too large. Please use a smaller photo (under 3MB).');
-    return;
-  }
+  const img=new Image();
+  const objUrl=URL.createObjectURL(file);
 
-  const reader=new FileReader();
-  reader.onload=e=>{
-    pendingPhoto=e.target.result; // base64 data URL
+  img.onload=function(){
+    // Resize to max 800x800, compress to 65% JPEG quality
+    // This keeps photos under ~150KB — fast to send on any connection
+    const MAX=800;
+    let w=img.width, h=img.height;
+    if(w>h){ if(w>MAX){h=Math.round(h*MAX/w);w=MAX;} }
+    else    { if(h>MAX){w=Math.round(w*MAX/h);h=MAX;} }
+
+    const canvas=document.createElement('canvas');
+    canvas.width=w; canvas.height=h;
+    canvas.getContext('2d').drawImage(img,0,0,w,h);
+
+    pendingPhoto=canvas.toDataURL('image/jpeg',0.65);
+    URL.revokeObjectURL(objUrl);
+
     const prev=document.getElementById('photo-preview');
     prev.src=pendingPhoto; prev.classList.add('show');
     document.getElementById('msg-input').placeholder='Add a note (optional) then tap SEND';
-    sysMsg('Photo ready. Add note then tap SEND.');
+
+    const kb=Math.round(pendingPhoto.length*0.75/1024);
+    sysMsg(`Photo ready — ${kb}KB. Add note then tap SEND.`);
   };
-  reader.readAsDataURL(file);
+
+  img.onerror=function(){
+    sysMsg('Could not load photo. Please try again.');
+    URL.revokeObjectURL(objUrl);
+  };
+
+  img.src=objUrl;
 }
 
 // ============================================================
