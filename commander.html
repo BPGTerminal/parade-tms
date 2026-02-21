@@ -109,97 +109,126 @@
   .leg-item{display:flex;align-items:center;gap:8px;margin-bottom:4px;}
   .leg-dot{width:12px;height:12px;border-radius:50%;border:2px solid rgba(255,255,255,.3);}
   /* MARKER */
-  .p-marker{width:34px;height:34px;border-radius:50%;border:3px solid rgba(255,255,255,.8);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:bold;color:#000;box-shadow:0 0 10px rgba(255,255,255,.3);}
+  /* .p-marker base — overridden by new CSS block below */
   @keyframes pulse{0%,100%{box-shadow:0 0 8px rgba(0,255,136,.5)}50%{box-shadow:0 0 20px rgba(0,255,136,1),0 0 40px rgba(0,255,136,.3)}}
 
+
   /* ============================================================
-     MAP CONTROLS — must be above Leaflet (z-index 400+)
-     position:absolute inside #map, top-right corner
+     MAP CONTROLS — left side, compact, above Leaflet (z-index 400+)
      ============================================================ */
-  #map { position:relative; }
+  #map { position:relative; overflow:hidden; }
 
   #map-controls {
     position:absolute;
     top:10px;
-    right:10px;
+    left:60px;               /* clear of zoom controls */
     z-index:1000;
     display:flex;
-    gap:6px;
+    flex-direction:column;   /* stack MAXIMIZE above LAYERS */
+    gap:4px;
     align-items:flex-start;
-    /* relative so layer-panel can position off of it */
+    pointer-events:none;     /* let map clicks through between buttons */
   }
-  #layer-toggle-btn { position:relative; }
-  #layer-toggle-btn > #layer-panel,
-  #map-controls > #layer-panel {
-
   #map-max-btn, #layer-toggle-btn {
-    background:rgba(5,8,16,.92);
+    pointer-events:all;
+    background:rgba(5,8,16,.88);
     border:1px solid #1e3a5f;
     color:#00e5ff;
     font-family:'Share Tech Mono',monospace;
-    font-size:10px;
+    font-size:9px;
     letter-spacing:1px;
-    padding:6px 10px;
+    padding:4px 8px;
     cursor:pointer;
     white-space:nowrap;
-    pointer-events:all;
+    line-height:1.4;
   }
   #map-max-btn:hover, #layer-toggle-btn:hover {
     background:rgba(0,229,255,.12);
     border-color:#00e5ff;
   }
 
-  #layer-wrapper { position:relative; }
+  /* wrapper gives the panel an anchor point */
+  #layer-wrapper {
+    position:relative;
+    pointer-events:all;
+  }
   #layer-panel {
     position:absolute;
-    top:calc(100% + 4px);
-    right:0;
-    width:200px;
+    top:calc(100% + 2px);
+    left:0;
+    width:160px;
     background:rgba(5,8,16,.97);
     border:1px solid #1e3a5f;
-    padding:6px 0;
+    padding:4px 0;
     display:none;
     z-index:1001;
   }
   #layer-panel.open { display:block; }
 
-  .lp-section { padding:4px 0; border-bottom:1px solid #0f2035; }
+  .lp-section { padding:2px 0; border-bottom:1px solid #0f2035; }
   .lp-section:last-child { border-bottom:none; }
   .lp-label {
     font-family:'Share Tech Mono',monospace;
-    font-size:8px;
+    font-size:7px;
     color:#4a6080;
     letter-spacing:1px;
-    padding:4px 12px 2px;
+    padding:3px 8px 1px;
+    text-transform:uppercase;
   }
   .lp-row {
     display:flex;
     align-items:center;
-    gap:8px;
-    padding:5px 12px;
+    gap:6px;
+    padding:4px 8px;
     cursor:pointer;
     font-family:'Share Tech Mono',monospace;
-    font-size:10px;
+    font-size:9px;
     color:#8aa8c8;
   }
   .lp-row:hover { background:rgba(0,229,255,.08); color:#00e5ff; }
   .lp-check {
-    width:14px;
-    height:14px;
+    width:10px;
+    height:10px;
     border:1px solid #1e3a5f;
     display:flex;
     align-items:center;
     justify-content:center;
-    font-size:9px;
+    font-size:7px;
     flex-shrink:0;
+    line-height:1;
   }
-  .lp-check.on  { border-color:#00e5ff; color:#00e5ff; }
+  .lp-check.on        { border-color:#00e5ff; color:#00e5ff; }
   .lp-check.hazard-on { border-color:#ff9900; color:#ff9900; }
-  .lp-name { font-size:10px; }
-  .lp-opacity { flex:1; accent-color:#00e5ff; }
+  .lp-name { font-size:9px; }
+  .lp-opacity { flex:1; accent-color:#00e5ff; height:3px; }
+
+  /* Shrink Leaflet attribution badge */
+  .leaflet-control-attribution {
+    font-size:7px !important;
+    padding:1px 4px !important;
+    background:rgba(5,8,16,.6) !important;
+    color:#4a6080 !important;
+    max-width:180px;
+  }
+  .leaflet-control-attribution a { color:#4a6080 !important; }
 
   /* FOOTER transition for fade cycle */
   #pagong-footer { transition:opacity 1s ease; }
+
+  /* PERSONNEL MARKER — half size */
+  .p-marker {
+    width:18px !important;
+    height:18px !important;
+    border-radius:50%;
+    border:2px solid rgba(255,255,255,.7) !important;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    font-size:7px !important;
+    font-weight:bold;
+    color:#000;
+    box-shadow:0 0 6px rgba(255,255,255,.25) !important;
+  }
 
 </style>
 </head>
@@ -219,49 +248,53 @@
 </header>
 
 <div id="map">
-  <!-- Map Controls -->
+  <!-- Map Controls: left side, stacked, compact -->
   <div id="map-controls">
-    <button id="map-max-btn" onclick="toggleMapMax()" title="Maximize map">⛶ MAXIMIZE</button>
+    <button id="map-max-btn"
+      onclick="event.stopPropagation();toggleMapMax()"
+      title="Toggle fullscreen map">&#9636; MAXIMIZE</button>
     <div id="layer-wrapper">
-    <button id="layer-toggle-btn" onclick="toggleLayerPanel()">🗺 LAYERS ▾</button>
-    <div id="layer-panel">
-      <div class="lp-section">
-        <div class="lp-label">BASE MAP</div>
-        <div class="lp-row" onclick="setLayer('street')">
-          <div class="lp-check on" id="chk-street">✓</div>
-          <span class="lp-name">🗺 Street Map</span>
+      <button id="layer-toggle-btn"
+        onclick="event.stopPropagation();toggleLayerPanel()">&#128506; LAYERS &#9662;</button>
+      <div id="layer-panel" onclick="event.stopPropagation()">
+        <div class="lp-section">
+          <div class="lp-label">BASE MAP</div>
+          <div class="lp-row" onclick="event.stopPropagation();setLayer('street')">
+            <div class="lp-check on" id="chk-street">&#10003;</div>
+            <span class="lp-name">Street Map</span>
+          </div>
+          <div class="lp-row" onclick="event.stopPropagation();setLayer('satellite')">
+            <div class="lp-check" id="chk-satellite"></div>
+            <span class="lp-name">Satellite</span>
+          </div>
+          <div class="lp-row" onclick="event.stopPropagation();setLayer('topo')">
+            <div class="lp-check" id="chk-topo"></div>
+            <span class="lp-name">Terrain/Topo</span>
+          </div>
         </div>
-        <div class="lp-row" onclick="setLayer('satellite')">
-          <div class="lp-check" id="chk-satellite"></div>
-          <span class="lp-name">🛰 Satellite</span>
-        </div>
-        <div class="lp-row" onclick="setLayer('topo')">
-          <div class="lp-check" id="chk-topo"></div>
-          <span class="lp-name">⛰ Terrain / Topo</span>
-        </div>
-      </div>
-      <div class="lp-section">
-        <div class="lp-label">PHIVOLCS HAZARD OVERLAY</div>
-        <div class="lp-row" onclick="toggleHazard('flood')">
-          <div class="lp-check" id="chk-flood"></div>
-          <span class="lp-name">🌊 Flood Hazard</span>
-        </div>
-        <div class="lp-row" onclick="toggleHazard('landslide')">
-          <div class="lp-check" id="chk-landslide"></div>
-          <span class="lp-name">⚠ Landslide</span>
-        </div>
-        <div class="lp-row" onclick="toggleHazard('storm')">
-          <div class="lp-check" id="chk-storm"></div>
-          <span class="lp-name">🌀 Storm Surge</span>
-        </div>
-        <div style="padding:6px 0 2px;display:flex;align-items:center;gap:8px;">
-          <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--dim);">OPACITY</span>
-          <input type="range" class="lp-opacity" id="hazard-opacity" min="10" max="90" value="65" oninput="setHazardOpacity(this.value)"/>
+        <div class="lp-section">
+          <div class="lp-label">HAZARD OVERLAY</div>
+          <div class="lp-row" onclick="event.stopPropagation();toggleHazard('flood')">
+            <div class="lp-check" id="chk-flood"></div>
+            <span class="lp-name">Flood</span>
+          </div>
+          <div class="lp-row" onclick="event.stopPropagation();toggleHazard('landslide')">
+            <div class="lp-check" id="chk-landslide"></div>
+            <span class="lp-name">Landslide</span>
+          </div>
+          <div class="lp-row" onclick="event.stopPropagation();toggleHazard('storm')">
+            <div class="lp-check" id="chk-storm"></div>
+            <span class="lp-name">Storm Surge</span>
+          </div>
+          <div style="padding:4px 8px 4px;display:flex;align-items:center;gap:6px;">
+            <span style="font-family:'Share Tech Mono',monospace;font-size:7px;color:#4a6080;">OPACITY</span>
+            <input type="range" class="lp-opacity" id="hazard-opacity" min="10" max="90" value="65"
+              oninput="event.stopPropagation();setHazardOpacity(this.value)" onclick="event.stopPropagation()"/>
+          </div>
         </div>
       </div>
     </div>
   </div>
-  </div><!-- /layer-wrapper -->
   <!-- Hazard Legend -->
   <div id="hazard-legend">
     <div class="leg-title" id="leg-title">HAZARD LEGEND</div>
@@ -470,12 +503,12 @@ document.addEventListener('click', function(e){
 function updateBaseChecks(key){
   ['street','satellite','topo'].forEach(function(k){
     const c = document.getElementById('chk-'+k);
-    if(c){ c.textContent = k===key ? '✓' : ''; c.className='lp-check'+(k===key?' on':''); }
+    if(c){ c.innerHTML = k===key ? '&#10003;' : ''; c.className='lp-check'+(k===key?' on':''); }
   });
 }
 function updateHazardCheck(key, on){
   const c = document.getElementById('chk-'+key);
-  if(c){ c.textContent = on ? '✓' : ''; c.className='lp-check'+(on?' hazard-on':''); }
+  if(c){ c.innerHTML = on ? '&#10003;' : ''; c.className='lp-check'+(on?' hazard-on':''); }
 }
 function setHazardOpacity(val){
   if(typeof activeHazardLayer !== 'undefined' && activeHazardLayer) activeHazardLayer.setOpacity(val/100);
@@ -682,8 +715,8 @@ function updateMarker(p){
   const color = getTeamColor(p.team);
   const initials = p.name.replace(/^(Ofc\.|PO|SPO|Insp\.)\s*/i,'').split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase();
   const glowColor = color.replace('#','');
-  const html = `<div class="p-marker" style="background:${color};box-shadow:0 0 12px ${color}80;">${initials}</div>`;
-  const icon = L.divIcon({html,className:'',iconSize:[34,34],iconAnchor:[17,17]});
+  const html = `<div class="p-marker" style="background:${color};box-shadow:0 0 8px ${color}80;">${initials}</div>`;
+  const icon = L.divIcon({html,className:'',iconSize:[18,18],iconAnchor:[9,9]});
 
   if(markers[p.id]){
     markers[p.id].setLatLng([p.lat,p.lng]);
