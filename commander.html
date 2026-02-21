@@ -86,7 +86,9 @@
   #send-btn{background:var(--accent2);border:none;color:#fff;font-family:'Share Tech Mono',monospace;font-size:11px;padding:0 12px;cursor:pointer;letter-spacing:1px;}
   /* PHOTO MODAL */
   #photo-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:center;justify-content:center;}
-  #photo-modal.show{display:flex;}
+  #photo-modal.show{display:flex;flex-direction:column;align-items:center;}
+  .photo-fallback{display:flex;align-items:center;justify-content:center;background:rgba(0,229,255,.1);border:1px solid var(--accent);color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:11px;padding:8px 14px;text-decoration:none;letter-spacing:1px;margin-top:6px;}
+  .msg-photo-wrap{margin-top:6px;}
   #photo-modal img{max-width:90vw;max-height:90vh;border:2px solid var(--accent);}
   #pm-close{position:absolute;top:20px;right:24px;color:var(--accent);font-size:28px;cursor:pointer;font-family:'Share Tech Mono',monospace;}
   /* SCROLLBAR */
@@ -147,6 +149,7 @@
 <div id="photo-modal">
   <span id="pm-close" onclick="closePhoto()">✕</span>
   <img id="pm-img" src="" alt="Situation photo"/>
+  <a id="pm-fallback" href="#" target="_blank" style="display:none;color:#fff;font-family:'Share Tech Mono',monospace;font-size:13px;margin-top:10px;">📷 Open in Google Drive</a>
 </div>
 
 <script>
@@ -474,7 +477,23 @@ function addMessage(msg, save=true){
       <span class="msg-time">${msg.time}</span>
     </div>
     <div>${msg.body}</div>
-    ${msg.photoUrl?`<img class="msg-photo" src="${msg.photoUrl}" onclick="openPhoto('${msg.photoUrl}')" title="Click to enlarge"/>` : ''}
+    ${msg.photoUrl?(()=>{
+        // Convert drive.google.com/uc?id=X to embeddable thumbnail URL
+        const raw = msg.photoUrl;
+        const match = raw.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        const embedUrl = match
+          ? 'https://lh3.googleusercontent.com/d/'+match[1]
+          : raw;
+        return `<div class="msg-photo-wrap">
+          <img class="msg-photo" src="${embedUrl}"
+            onclick="openPhoto('${embedUrl}','${raw}')"
+            onerror="this.style.display='none';this.nextElementSibling.style.display='flex';"
+            title="Click to enlarge"/>
+          <a class="photo-fallback" href="${raw}" target="_blank" style="display:none;">
+            📷 View Photo in Drive
+          </a>
+        </div>`;
+      })():''}
   `;
   log.appendChild(item);
   log.scrollTop=log.scrollHeight;
@@ -488,7 +507,17 @@ function addMessage(msg, save=true){
 // ============================================================
 // PHOTO
 // ============================================================
-function openPhoto(url){ document.getElementById('pm-img').src=url; document.getElementById('photo-modal').classList.add('show'); }
+function openPhoto(url, fallback){
+  const img = document.getElementById('pm-img');
+  img.src = url;
+  img.onerror = function(){
+    // If embed fails, show drive link instead
+    this.style.display='none';
+    const fb = document.getElementById('pm-fallback');
+    if(fb){ fb.href=fallback||url; fb.style.display='block'; }
+  };
+  document.getElementById('photo-modal').classList.add('show');
+}
 function closePhoto(){ document.getElementById('photo-modal').classList.remove('show'); }
 
 // ============================================================

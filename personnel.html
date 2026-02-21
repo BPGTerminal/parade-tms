@@ -262,7 +262,15 @@ function doLogin(){
   err.style.display='none';
 
   me = {
-    id:'P_'+name.replace(/\s+/g,'_').toUpperCase()+'_'+Date.now().toString().slice(-4),
+    id:(function(){
+      // Permanent device ID — same phone always gets same ID, prevents duplicates
+      let did = localStorage.getItem('tms_device_id');
+      if (!did) {
+        did = 'D_' + Math.random().toString(36).slice(2,8).toUpperCase() + '_' + Date.now().toString().slice(-4);
+        localStorage.setItem('tms_device_id', did);
+      }
+      return did;
+    })(),
     name, team:teamName, teamColor:team.color, post
   };
 
