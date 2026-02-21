@@ -305,9 +305,12 @@ async function fetchUpdates(){
   try{
     const r = await fetch(`${SHEET_URL}?action=getAll`);
     const d = await r.json();
-    if(d.personnel) updatePersonnel(d.personnel);
-    if(d.messages)  updateMessages(d.messages);
-  }catch(e){ console.warn('Fetch error',e); }
+    if(d.personnel){
+      console.log('[TMS] Personnel data:', JSON.stringify(d.personnel));
+      updatePersonnel(d.personnel);
+    }
+    if(d.messages) updateMessages(d.messages);
+  }catch(e){ console.warn('[TMS] Fetch error',e); }
 }
 
 // ============================================================
@@ -339,14 +342,19 @@ function updatePersonnel(list){
     lng: parseFloat(p.lng)||0,
     online: p.online===true || p.online==='TRUE' || p.online==='true'
   }));
-  list.forEach(p=>{ personnelData[p.id]=p; });
+  list.forEach(p=>{
+    personnelData[p.id]=p;
+    console.log('[TMS] Person:',p.name,'online:',p.online,'lat:',p.lat,'lng:',p.lng);
+  });
 
-  // Auto-fit map once
+  // Auto-fit map to show all online personnel with valid GPS
   const online = list.filter(p=>p.online && (p.lat||0) !== 0 && (p.lng||0) !== 0);
   if(online.length>0 && !map._fitted){
     map.fitBounds(online.map(p=>[p.lat,p.lng]),{padding:[60,60]});
     map._fitted=true;
   }
+  // If no online with GPS yet, keep default center but don't lock
+  if(online.length===0) map._fitted=false;
 
   // Update markers
   list.forEach(p=>{
