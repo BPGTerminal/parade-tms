@@ -124,15 +124,15 @@
     left:60px;               /* clear of zoom controls */
     z-index:1000;
     display:flex;
-    flex-direction:column;   /* stack MAXIMIZE above LAYERS */
+    flex-direction:row;      /* side by side */
     gap:4px;
     align-items:flex-start;
     pointer-events:none;     /* let map clicks through between buttons */
   }
   #map-max-btn, #layer-toggle-btn {
     pointer-events:all;
-    background:rgba(5,8,16,.88);
-    border:1px solid #1e3a5f;
+    background:rgba(5,8,16,.38);
+    border:1px solid rgba(0,229,255,.25);
     color:#00e5ff;
     font-family:'Share Tech Mono',monospace;
     font-size:9px;
@@ -143,7 +143,7 @@
     line-height:1.4;
   }
   #map-max-btn:hover, #layer-toggle-btn:hover {
-    background:rgba(0,229,255,.12);
+    background:rgba(0,229,255,.15);
     border-color:#00e5ff;
   }
 
@@ -934,7 +934,7 @@ init();
         <div style="font-size:7px;color:#4a6080;font-family:'Share Tech Mono',monospace;">Joey Sabenacio Heredero</div>
       </div>
     </div>
-    <div style="font-size:9px;color:#1e3a5f;font-family:'Share Tech Mono',monospace;text-align:right;">
+    <div style="font-size:7px;color:#1e3a5f;font-family:'Share Tech Mono',monospace;text-align:right;opacity:0.4;">
       © 2025 ALL RIGHTS RESERVED<br/>PARADE TMS · EOC SYSTEM
     </div>
   </div>
