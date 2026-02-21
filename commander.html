@@ -40,6 +40,8 @@
   /* MAP */
   #map{background:#07101f;padding-bottom:46px;}
   .leaflet-tile{filter:brightness(.7) saturate(.5) hue-rotate(200deg);}
+  .leaflet-tile.satellite{filter:none;}
+  .leaflet-tile.plain{filter:none;}
   /* SIDEBAR */
   aside{background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden;}
   .panel-hdr{background:rgba(0,229,255,.06);border-bottom:1px solid var(--border);padding:8px 14px;font-size:10px;font-family:'Share Tech Mono',monospace;letter-spacing:2px;color:var(--accent);text-transform:uppercase;display:flex;justify-content:space-between;align-items:center;}
@@ -120,6 +122,20 @@
 </header>
 
 <div id="map">
+  <!-- Layer Controls -->
+  <div id="layer-ctrl">
+    <button class="layer-btn active" id="btn-street" onclick="setLayer('street')">🗺 STREET</button>
+    <button class="layer-btn" id="btn-satellite" onclick="setLayer('satellite')">🛰 SATELLITE</button>
+    <button class="layer-btn" id="btn-topo" onclick="setLayer('topo')">⛰ TERRAIN</button>
+    <button class="layer-btn" id="btn-flood" onclick="toggleHazard('flood')">🌊 FLOOD</button>
+    <button class="layer-btn" id="btn-landslide" onclick="toggleHazard('landslide')">⚠ LANDSLIDE</button>
+    <button class="layer-btn" id="btn-storm" onclick="toggleHazard('storm')">🌀 STORM SURGE</button>
+  </div>
+  <!-- Hazard Legend -->
+  <div id="hazard-legend">
+    <div class="leg-title" id="leg-title">HAZARD LEGEND</div>
+    <div id="leg-rows"></div>
+  </div>
   <div id="legend"></div>
 </div>
 
@@ -257,11 +273,135 @@ function updateHeader(){
   document.title = `EOC Dashboard — ${CFG.eventName || 'TMS'}`;
 }
 
+// ============================================================
+// MAP LAYERS
+// ============================================================
+const TILE_LAYERS = {
+  street: {
+    url: 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    attr: '© OpenStreetMap', maxZoom:19,
+    filter: 'brightness(.75) saturate(.5) hue-rotate(200deg)'
+  },
+  satellite: {
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attr: '© Esri World Imagery', maxZoom:19,
+    filter: 'brightness(.9) saturate(.9)'
+  },
+  topo: {
+    url: 'https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',
+    attr: '© OpenTopoMap', maxZoom:17,
+    filter: 'brightness(.75) saturate(.4) hue-rotate(180deg)'
+  }
+};
+
+// PHIVOLCS Hazard Hunter WMS layers
+const HAZARD_LAYERS = {
+  flood: {
+    url: 'https://hazardhunter.georisk.gov.ph/geoserver/hazardhunter/wms',
+    layers: 'hazardhunter:fh_100yr',
+    label: 'FLOOD HAZARD (100yr)',
+    legend: [{color:'#ff0000',label:'High'},{color:'#ff8800',label:'Medium'},{color:'#ffff00',label:'Low'}]
+  },
+  landslide: {
+    url: 'https://hazardhunter.georisk.gov.ph/geoserver/hazardhunter/wms',
+    layers: 'hazardhunter:lh_combined',
+    label: 'RAIN-INDUCED LANDSLIDE',
+    legend: [{color:'#cc0000',label:'High'},{color:'#ff6600',label:'Medium'},{color:'#ffcc00',label:'Low'}]
+  },
+  storm: {
+    url: 'https://hazardhunter.georisk.gov.ph/geoserver/hazardhunter/wms',
+    layers: 'hazardhunter:ssa_level3',
+    label: 'STORM SURGE ADVISORY',
+    legend: [{color:'#0000ff',label:'SSA 3 (>3m)'},{color:'#0088ff',label:'SSA 2 (1-3m)'},{color:'#00ccff',label:'SSA 1 (<1m)'}]
+  }
+};
+
+let currentBaseLayer = null;
+let activeHazardLayer = null;
+let currentLayerKey = 'street';
+let currentHazardKey = null;
+
 function initMap(){
   map = L.map('map',{zoomControl:true}).setView([CFG.lat, CFG.lng], 15);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
-    attribution:'© OpenStreetMap', maxZoom:19
-  }).addTo(map);
+  setLayer('street');
+}
+
+function setLayer(key){
+  const cfg = TILE_LAYERS[key];
+  if(!cfg) return;
+
+  if(currentBaseLayer) map.removeLayer(currentBaseLayer);
+
+  currentBaseLayer = L.tileLayer(cfg.url, {attribution:cfg.attr, maxZoom:cfg.maxZoom});
+  currentBaseLayer.addTo(map);
+  currentLayerKey = key;
+
+  // Apply brightness filter to map tiles
+  setTimeout(()=>{
+    document.querySelectorAll('.leaflet-tile-pane img').forEach(img=>{
+      img.style.filter = cfg.filter||'';
+    });
+  }, 300);
+
+  // Update button states
+  ['street','satellite','topo'].forEach(k=>{
+    const b = document.getElementById('btn-'+k);
+    if(b) b.className = 'layer-btn' + (k===key?' active':'');
+  });
+}
+
+function toggleHazard(key){
+  const btn = document.getElementById('btn-'+key);
+  const legend = document.getElementById('hazard-legend');
+
+  // Turn off if same layer clicked again
+  if(currentHazardKey === key){
+    if(activeHazardLayer){ map.removeLayer(activeHazardLayer); activeHazardLayer=null; }
+    currentHazardKey = null;
+    ['flood','landslide','storm'].forEach(k=>{ const b=document.getElementById('btn-'+k); if(b) b.className='layer-btn'; });
+    legend.style.display='none';
+    return;
+  }
+
+  // Remove previous hazard
+  if(activeHazardLayer){ map.removeLayer(activeHazardLayer); activeHazardLayer=null; }
+  ['flood','landslide','storm'].forEach(k=>{ const b=document.getElementById('btn-'+k); if(b) b.className='layer-btn'; });
+
+  const hcfg = HAZARD_LAYERS[key];
+  if(!hcfg) return;
+
+  // Try WMS first
+  try {
+    activeHazardLayer = L.tileLayer.wms(hcfg.url, {
+      layers: hcfg.layers,
+      format: 'image/png',
+      transparent: true,
+      opacity: 0.65,
+      attribution: '© PHIVOLCS Hazard Hunter'
+    });
+    activeHazardLayer.addTo(map);
+  } catch(e) {
+    console.warn('WMS layer failed:', e);
+    showHazardOfflineNotice(hcfg.label);
+    return;
+  }
+
+  currentHazardKey = key;
+  if(btn) btn.className = 'layer-btn hazard-active';
+
+  // Show legend
+  document.getElementById('leg-title').textContent = hcfg.label;
+  document.getElementById('leg-rows').innerHTML = hcfg.legend.map(l=>
+    `<div class="leg-row"><div class="leg-dot" style="background:${l.color}"></div>${l.label}</div>`
+  ).join('');
+  legend.style.display='block';
+}
+
+function showHazardOfflineNotice(label){
+  addMessage({
+    sender:'SYSTEM', post:'', type:'system', time:new Date().toLocaleTimeString('en-US',{hour12:false}),
+    body:`Hazard layer "${label}" could not be loaded. Open https://hazardhunter.georisk.gov.ph directly for hazard maps.`
+  });
 }
 
 function buildTeamFilters(){
