@@ -356,7 +356,10 @@ async function sendMsg(){
   const photoUrl=pendingPhoto||'';
   pendingPhoto=null;
   document.getElementById('photo-preview').classList.remove('show');
-  await post2sheet({action:'sendMessage',id:me.id,name:me.name,team:me.team,post:me.post,body:text,photoUrl,time:nowTime(),type:'personnel'});
+  // Include current GPS coordinates when a photo is attached
+  const photoLat = photoUrl && curLat ? curLat : '';
+  const photoLng = photoUrl && curLng ? curLng : '';
+  await post2sheet({action:'sendMessage',id:me.id,name:me.name,team:me.team,post:me.post,body:text,photoUrl,photoLat,photoLng,time:nowTime(),type:'personnel'});
 }
 
 function startFetching(){
