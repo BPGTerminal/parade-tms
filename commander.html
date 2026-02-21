@@ -332,10 +332,17 @@ function loadDemoData(){
 // PERSONNEL
 // ============================================================
 function updatePersonnel(list){
+  // Sanitize — Sheet sometimes returns strings
+  list = list.map(p=>({
+    ...p,
+    lat: parseFloat(p.lat)||0,
+    lng: parseFloat(p.lng)||0,
+    online: p.online===true || p.online==='TRUE' || p.online==='true'
+  }));
   list.forEach(p=>{ personnelData[p.id]=p; });
 
   // Auto-fit map once
-  const online = list.filter(p=>p.online && p.lat && p.lng);
+  const online = list.filter(p=>p.online && (p.lat||0) !== 0 && (p.lng||0) !== 0);
   if(online.length>0 && !map._fitted){
     map.fitBounds(online.map(p=>[p.lat,p.lng]),{padding:[60,60]});
     map._fitted=true;
@@ -343,7 +350,7 @@ function updatePersonnel(list){
 
   // Update markers
   list.forEach(p=>{
-    if(p.online && p.lat && p.lng) updateMarker(p);
+    if(p.online && (p.lat||0) !== 0 && (p.lng||0) !== 0) updateMarker(p);
     else removeMarker(p.id);
   });
 
