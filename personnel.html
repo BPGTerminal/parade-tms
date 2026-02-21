@@ -5,7 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>TMS Personnel</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="manifest" href="data:application/manifest+json,%7B%22name%22%3A%22Parade%20TMS%22%2C%22short_name%22%3A%22TMS%20Field%22%2C%22description%22%3A%22EOC%20Traffic%20Management%20Field%20App%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230a0e1a%22%2C%22theme_color%22%3A%22%2300e5ff%22%2C%22orientation%22%3A%22portrait%22%2C%22start_url%22%3A%22./personnel.html%22%2C%22icons%22%3A%5B%7B%22src%22%3A%22data%3Aimage/svg%2Bxml%2C%3Csvg%20xmlns%3D%27http%3A//www.w3.org/2000/svg%27%20viewBox%3D%270%200%20100%20100%27%3E%3Crect%20width%3D%27100%27%20height%3D%27100%27%20fill%3D%27%25230a0e1a%27/%3E%3Ctext%20y%3D%2775%27%20font-size%3D%2770%27%20text-anchor%3D%27middle%27%20x%3D%2750%27%3E%F0%9F%90%A2%3C/text%3E%3C/svg%3E%22%2C%22sizes%22%3A%22any%22%2C%22type%22%3A%22image/svg%2Bxml%22%7D%5D%7D">
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
 <style>
   :root{
     --bg:#0a0e1a; --panel:#0f1628; --border:#1e3a5f;
@@ -83,6 +84,20 @@
 <body>
 
 <!-- LOGIN -->
+
+<!-- PWA Install Banner -->
+<div id="install-banner" style="display:none;position:fixed;bottom:0;left:0;right:0;background:#1a2a4a;border-top:2px solid #00e5ff;padding:12px 16px;z-index:9999;align-items:center;justify-content:space-between;gap:10px;">
+  <div style="display:flex;align-items:center;gap:10px;">
+    <span style="font-size:22px;">📱</span>
+    <div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#00e5ff;letter-spacing:1px;">ADD TO HOME SCREEN</div>
+      <div style="font-size:12px;color:#c8d8e8;">Install Parade TMS for faster access</div>
+    </div>
+  </div>
+  <button onclick="installApp()" style="background:#00e5ff;border:none;color:#000;font-family:'Share Tech Mono',monospace;font-size:11px;font-weight:bold;padding:8px 16px;cursor:pointer;letter-spacing:1px;white-space:nowrap;">INSTALL</button>
+  <button onclick="document.getElementById('install-banner').style.display='none'" style="background:transparent;border:none;color:#4a6080;font-size:20px;cursor:pointer;padding:0 4px;">✕</button>
+</div>
+
 <div id="login-screen">
   <div class="app-logo">
     <div class="badge">EOC-TMS</div>
@@ -291,17 +306,22 @@ function doLogin(){
 // GPS
 // ============================================================
 function startGPS(){
-  if(!navigator.geolocation){ document.getElementById('gps-label').textContent='GPS unavailable'; return; }
+  if(!navigator.geolocation){ sysMsg('GPS not available on this device.'); reportCheckIn(); return; }
+  let checkedIn = false;
   navigator.geolocation.watchPosition(
     pos=>{
       curLat=pos.coords.latitude; curLng=pos.coords.longitude;
       const acc=Math.round(pos.coords.accuracy);
-      document.getElementById('gps-dot').classList.add('active');
-      document.getElementById('gps-label').textContent=`GPS ±${acc}m`;
+      document.getElementById('gps-label').textContent=`GPS \u00b1${acc}m`;
       document.getElementById('gps-coords').textContent=`${curLat.toFixed(5)}, ${curLng.toFixed(5)}`;
+      // Check in ONLY after we have real GPS coords
+      if(!checkedIn && curLat && curLng){
+        checkedIn = true;
+        reportCheckIn();
+      }
     },
-    ()=>{ document.getElementById('gps-label').textContent='GPS error — check permissions'; },
-    {enableHighAccuracy:true,timeout:12000,maximumAge:5000}
+    err=>{ document.getElementById('gps-label').textContent='GPS: Error'; reportCheckIn(); },
+    {enableHighAccuracy:true, maximumAge:5000, timeout:15000}
   );
 }
 
@@ -427,6 +447,24 @@ function handlePhoto(inp){
 
   img.src=objUrl;
 }
+
+
+// ============================================================
+// PWA — Install to Home Screen
+// ============================================================
+let deferredPrompt = null;
+window.addEventListener('beforeinstallprompt', e=>{
+  e.preventDefault();
+  deferredPrompt = e;
+  const banner = document.getElementById('install-banner');
+  if(banner) banner.style.display='flex';
+});
+function installApp(){
+  if(!deferredPrompt) return;
+  deferredPrompt.prompt();
+  deferredPrompt.userChoice.then(()=>{ deferredPrompt=null; document.getElementById('install-banner').style.display='none'; });
+}
+window.addEventListener('appinstalled', ()=>{ document.getElementById('install-banner').style.display='none'; });
 
 // ============================================================
 // HELPERS
