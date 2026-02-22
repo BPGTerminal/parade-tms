@@ -206,11 +206,14 @@
   .leaflet-control-attribution {
     font-size:7px !important;
     padding:1px 4px !important;
-    background:rgba(5,8,16,.6) !important;
-    color:#4a6080 !important;
-    max-width:180px;
+    background:transparent !important;
+    color:#c0d8f0 !important;
+    max-width:200px;
+    text-shadow:0 0 4px rgba(0,0,0,0.9),0 1px 3px rgba(0,0,0,1) !important;
+    box-shadow:none !important;
+    opacity:0.6;
   }
-  .leaflet-control-attribution a { color:#4a6080 !important; }
+  .leaflet-control-attribution a { color:#c0d8f0 !important; }
 
   /* FOOTER transition for fade cycle */
   #pagong-footer { transition:opacity 1s ease; }
@@ -447,8 +450,8 @@ const TILE_LAYERS = {
     filter: 'brightness(.75) saturate(.5) hue-rotate(200deg)'
   },
   satellite: {
-    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
-    attr: '© Esri World Imagery', maxZoom:19,
+    url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
+    attr: '© Google Maps', maxZoom:20,
     filter: 'brightness(.9) saturate(.9)'
   },
   topo: {
@@ -923,12 +926,12 @@ init();
   <!-- PAGONG FOOTER -->
   <div id="pagong-footer" style="
     position:fixed;bottom:0;left:0;right:341px;
-    background:rgba(5,8,16,.35);border-top:1px solid rgba(30,58,95,.4);
-    padding:5px 14px;display:flex;align-items:center;
-    justify-content:space-between;z-index:500;
+    background:transparent;border-top:none;
+    padding:0 8px 2px 8px;display:flex;align-items:flex-end;
+    justify-content:flex-start;z-index:500;pointer-events:none;
   ">
-    <div style="font-size:7px;color:#4a6080;font-family:'Share Tech Mono',monospace;opacity:0.4;letter-spacing:0.5px;white-space:nowrap;width:100%;text-align:center;">
-      JOEY S HEREDERO &nbsp;&middot;&nbsp; 09468206576 &nbsp;&middot;&nbsp; joeyherederopal@gmail.com &nbsp;&nbsp;&nbsp;&nbsp; &copy; 2026 ALL RIGHTS RESERVED &nbsp;&middot;&nbsp; PARADE TMS &middot; EOC SYSTEM
+    <div style="font-size:7px;color:#c0d8f0;font-family:'Share Tech Mono',monospace;opacity:0.6;letter-spacing:0.4px;white-space:nowrap;text-shadow:0 0 4px rgba(0,0,0,0.9),0 1px 3px rgba(0,0,0,1);">
+      JOEY S HEREDERO &nbsp;&middot;&nbsp; 09468206576 &nbsp;&middot;&nbsp; joeyherederopal@gmail.com &nbsp;&nbsp; &copy; 2026 ALL RIGHTS RESERVED
     </div>
   </div>
 
