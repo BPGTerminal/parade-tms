@@ -93,6 +93,25 @@
   #cmd-input:focus{border-color:var(--accent);}
   #cmd-input::placeholder{color:var(--dim);}
   #send-btn{background:var(--accent2);border:none;color:#fff;font-family:'Share Tech Mono',monospace;font-size:11px;padding:0 12px;cursor:pointer;letter-spacing:1px;}
+  /* JITSI VIDEO CONFERENCE */
+  #jitsi-section{border-top:1px solid var(--border);}
+  #jitsi-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;cursor:pointer;user-select:none;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--accent);background:rgba(0,229,255,.05);}
+  #jitsi-hdr:hover{background:rgba(0,229,255,.1);}
+  .jitsi-dot{width:7px;height:7px;border-radius:50%;background:#444;display:inline-block;margin-right:5px;}
+  .jitsi-dot.live{background:#ff4444;animation:pulse 1s infinite;}
+  #jitsi-body{display:none;padding:6px;background:rgba(0,0,0,.25);}
+  #jitsi-body.open{display:block;}
+  .jitsi-row{display:flex;gap:4px;margin-bottom:5px;}
+  #jitsi-room-in{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 7px;outline:none;letter-spacing:1px;}
+  #jitsi-room-in:focus{border-color:var(--accent);}
+  .jbtn{background:rgba(0,229,255,.08);border:1px solid var(--border);color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:9px;padding:4px 9px;cursor:pointer;letter-spacing:1px;transition:all .2s;white-space:nowrap;}
+  .jbtn:hover{background:var(--accent);color:#000;}
+  .jbtn.red{border-color:#ff4444;color:#ff4444;}
+  .jbtn.red:hover{background:#ff4444;color:#fff;}
+  #jitsi-wrap{width:100%;background:#000;border:1px solid var(--border);position:relative;min-height:140px;display:flex;align-items:center;justify-content:center;}
+  #jitsi-wrap iframe{width:100%;height:180px;border:none;display:block;}
+  #jitsi-idle{color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:10px;text-align:center;padding:16px 8px;letter-spacing:1px;}
+  
   /* PHOTO MODAL */
   #photo-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:center;justify-content:center;}
   #photo-modal.show{display:flex;flex-direction:column;align-items:center;}
@@ -325,6 +344,24 @@
     <div class="compose-row">
       <input type="text" id="cmd-input" placeholder="Type message or command..."/>
       <button id="send-btn" onclick="sendMessage()">SEND</button>
+    </div>
+  </div>
+
+  <!-- JITSI VIDEO / VOICE CONFERENCE -->
+  <div id="jitsi-section">
+    <div id="jitsi-hdr" onclick="toggleJitsi()">
+      <span><span class="jitsi-dot" id="jitsi-dot"></span>📹 VIDEO CONFERENCE</span>
+      <span id="jitsi-hdr-status" style="font-size:9px;color:var(--dim);">IDLE ▼</span>
+    </div>
+    <div id="jitsi-body">
+      <div class="jitsi-row">
+        <input id="jitsi-room-in" type="text" placeholder="Room name (e.g. PARADE26-EOC)" value="PARADE26-EOC"/>
+        <button class="jbtn" onclick="joinJitsi()">JOIN</button>
+        <button class="jbtn red" onclick="leaveJitsi()">END</button>
+      </div>
+      <div id="jitsi-wrap">
+        <div id="jitsi-idle">▶ Enter a room name and press JOIN<br/>to start a free video call</div>
+      </div>
     </div>
   </div>
 </aside>
@@ -921,6 +958,44 @@ function toggleMapMax(){
 })();
 
 init();
+
+// ============================================================
+// JITSI VIDEO CONFERENCE
+// ============================================================
+let jitsiAPI = null;
+
+function toggleJitsi(){
+  const body = document.getElementById('jitsi-body');
+  const status = document.getElementById('jitsi-hdr-status');
+  body.classList.toggle('open');
+  status.textContent = body.classList.contains('open') ? 'OPEN ▲' : 'IDLE ▼';
+}
+
+function joinJitsi(){
+  const room = (document.getElementById('jitsi-room-in').value||'PARADE26-EOC').trim().replace(/\s+/g,'-');
+  const wrap = document.getElementById('jitsi-wrap');
+  // Remove old iframe if any
+  wrap.innerHTML = '';
+  // Use Jitsi public server via iframe — no API key needed
+  const iframe = document.createElement('iframe');
+  iframe.src = `https://meet.jit.si/${encodeURIComponent(room)}`;
+  iframe.allow = 'camera; microphone; fullscreen; display-capture; autoplay';
+  iframe.style.cssText = 'width:100%;height:220px;border:none;display:block;';
+  wrap.appendChild(iframe);
+  // Update header dot
+  document.getElementById('jitsi-dot').classList.add('live');
+  document.getElementById('jitsi-hdr-status').innerHTML = '<span style="color:#ff4444">● LIVE</span> ▲';
+  // Make sure panel is open
+  document.getElementById('jitsi-body').classList.add('open');
+}
+
+function leaveJitsi(){
+  const wrap = document.getElementById('jitsi-wrap');
+  wrap.innerHTML = '<div id="jitsi-idle">▶ Enter a room name and press JOIN<br/>to start a free video call</div>';
+  document.getElementById('jitsi-dot').classList.remove('live');
+  document.getElementById('jitsi-hdr-status').textContent = 'IDLE ▼';
+}
+
 </script>
 
   <!-- PAGONG FOOTER -->
