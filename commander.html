@@ -1074,6 +1074,7 @@ init();
     wrap.appendChild(ifr);
     floatEl.classList.add('show');
     minimized=false;
+    window._jitsiStartTime = new Date().toLocaleTimeString('en-US',{hour12:false,timeZone:'Asia/Manila'});
     document.getElementById('jitsi-dot').classList.add('live');
     document.getElementById('jf-dot').classList.add('live');
     document.getElementById('jitsi-live-badge').innerHTML='<span style="color:#ff4444">● LIVE</span>';
@@ -1104,11 +1105,32 @@ init();
 
   window.closeJitsiFloat = function(){
     if(!floatEl) return;
+    // Log the call to Google Drive + Sheet
+    if(document.getElementById('jf-dot').classList.contains('live')){
+      const room = (document.getElementById('jitsi-room-in').value||'PARADE26-EOC').trim().replace(/\s+/g,'-');
+      const cfg  = loadConfig();
+      const endTime = new Date().toLocaleTimeString('en-US',{hour12:false,timeZone:'Asia/Manila'});
+      fetch(cfg.sheetUrl, {
+        method:'POST',
+        body: JSON.stringify({
+          action:      'logVideoCall',
+          room:        room,
+          startedBy:   cfg.commander || 'Commander',
+          timeStart:   window._jitsiStartTime || '',
+          timeEnd:     endTime,
+          participants:[cfg.commander || 'Commander'],
+          notes:       'Session ended by Commander'
+        })
+      }).then(r=>r.json()).then(res=>{
+        if(res.logUrl) console.log('Video log saved:', res.logUrl);
+      }).catch(()=>{});
+    }
     floatEl.classList.remove('show');
     document.getElementById('jf-iframe-wrap').innerHTML='<div id="jf-idle"><div class="jf-icon">📹</div>Press LAUNCH in the side panel<br/>to start a video call</div>';
     document.getElementById('jitsi-dot').classList.remove('live');
     document.getElementById('jf-dot').classList.remove('live');
     document.getElementById('jitsi-live-badge').textContent='IDLE';
+    window._jitsiStartTime = null;
     minimized=false;
   };
 
