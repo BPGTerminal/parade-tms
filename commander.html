@@ -93,10 +93,9 @@
   #cmd-input:focus{border-color:var(--accent);}
   #cmd-input::placeholder{color:var(--dim);}
   #send-btn{background:var(--accent2);border:none;color:#fff;font-family:'Share Tech Mono',monospace;font-size:11px;padding:0 12px;cursor:pointer;letter-spacing:1px;}
-  /* JITSI VIDEO CONFERENCE — sidebar trigger */
+  /* GOOGLE MEET — sidebar launcher */
   #jitsi-section{border-top:1px solid var(--border);}
-  #jitsi-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;cursor:pointer;user-select:none;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--accent);background:rgba(0,229,255,.05);}
-  #jitsi-hdr:hover{background:rgba(0,229,255,.1);}
+  #jitsi-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;cursor:default;user-select:none;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--accent);background:rgba(0,229,255,.05);}
   .jitsi-dot{width:7px;height:7px;border-radius:50%;background:#444;display:inline-block;margin-right:5px;}
   .jitsi-dot.live{background:#ff4444;animation:pulse 1s infinite;}
   #jitsi-body{padding:6px;background:rgba(0,0,0,.25);}
@@ -107,14 +106,16 @@
   .jbtn:hover{background:var(--accent);color:#000;}
   .jbtn.red{border-color:#ff4444;color:#ff4444;}
   .jbtn.red:hover{background:#ff4444;color:#fff;}
+  .jbtn.green{border-color:#00ff88;color:#00ff88;}
+  .jbtn.green:hover{background:#00ff88;color:#000;}
 
-  /* JITSI FLOATING WINDOW */
+  /* GOOGLE MEET FLOATING STATUS PANEL */
   #jitsi-float{
     display:none;position:fixed;z-index:8000;
-    width:380px;min-width:220px;min-height:180px;
-    background:rgba(5,8,16,.96);border:1px solid rgba(0,229,255,.4);
+    width:340px;min-width:220px;
+    background:rgba(5,8,16,.97);border:1px solid rgba(0,229,255,.4);
     box-shadow:0 0 24px rgba(0,229,255,.2);
-    flex-direction:column;resize:both;overflow:hidden;
+    flex-direction:column;overflow:hidden;
   }
   #jitsi-float.show{display:flex;}
   #jf-titlebar{
@@ -132,10 +133,16 @@
   .jf-btn.red:hover{background:#ff4444;color:#fff;}
   .jf-btn.minimize{border-color:#ffaa00;color:#ffaa00;}
   .jf-btn.minimize:hover{background:#ffaa00;color:#000;}
-  #jf-iframe-wrap{flex:1;background:#000;position:relative;overflow:hidden;min-height:0;}
-  #jf-iframe-wrap iframe{width:100%;height:100%;border:none;display:block;}
-  #jf-idle{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;text-align:center;gap:6px;padding:12px;}
-  #jf-idle .jf-icon{font-size:30px;opacity:0.4;}
+  .jf-btn.green{border-color:#00ff88;color:#00ff88;}
+  .jf-btn.green:hover{background:#00ff88;color:#000;}
+  #jf-iframe-wrap{flex:1;background:rgba(0,0,0,.4);position:relative;padding:10px 10px 6px 10px;}
+  #jf-meet-link{font-family:'Share Tech Mono',monospace;font-size:9px;color:#00e5ff;word-break:break-all;letter-spacing:0.5px;margin-bottom:8px;line-height:1.5;}
+  #jf-meet-link a{color:#00e5ff;text-decoration:none;}
+  #jf-meet-link a:hover{text-decoration:underline;}
+  #jf-actions{display:flex;gap:4px;flex-wrap:wrap;margin-bottom:8px;}
+  #jf-status-line{font-family:'Share Tech Mono',monospace;font-size:8px;color:var(--dim);letter-spacing:0.5px;border-top:1px solid rgba(0,229,255,.1);padding-top:6px;}
+  #jf-idle{display:flex;flex-direction:column;align-items:center;justify-content:center;padding:16px 12px;color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;text-align:center;gap:6px;}
+  #jf-idle .jf-icon{font-size:28px;opacity:0.4;}
   #jf-resize-hint{font-size:7px;color:rgba(0,229,255,.3);font-family:'Share Tech Mono',monospace;text-align:right;padding:1px 4px;flex-shrink:0;letter-spacing:0.5px;pointer-events:none;}
   
   /* PHOTO MODAL */
@@ -373,27 +380,27 @@
     </div>
   </div>
 
-  <!-- JITSI VIDEO CONFERENCE — sidebar launcher -->
+  <!-- GOOGLE MEET — sidebar launcher -->
   <div id="jitsi-section">
     <div id="jitsi-hdr">
-      <span><span class="jitsi-dot" id="jitsi-dot"></span>📹 VIDEO CONFERENCE</span>
+      <span><span class="jitsi-dot" id="jitsi-dot"></span>📹 VIDEO CALL</span>
       <span id="jitsi-live-badge" style="font-size:9px;color:var(--dim);">IDLE</span>
     </div>
     <div id="jitsi-body">
       <div class="jitsi-row">
-        <input id="jitsi-room-in" type="text" placeholder="Room name..." value="PARADE26-EOC"/>
-        <button class="jbtn" onclick="launchJitsiFloat()">LAUNCH</button>
+        <input id="jitsi-room-in" type="text" placeholder="Paste Meet link or code..." style="font-size:9px;"/>
+        <button class="jbtn green" onclick="launchJitsiFloat()">START</button>
       </div>
-      <div style="font-size:8px;color:var(--dim);font-family:'Share Tech Mono',monospace;letter-spacing:0.5px;padding:2px 0 4px 0;">
-        Opens a draggable &amp; resizable video window over the map
+      <div style="font-size:8px;color:var(--dim);font-family:'Share Tech Mono',monospace;letter-spacing:0.5px;padding:2px 0 4px 0;line-height:1.5;">
+        Paste a Google Meet link · opens in new tab<br/>Float panel tracks status &amp; shares link to team
       </div>
     </div>
   </div>
 
-  <!-- JITSI FLOATING WINDOW (over map) -->
+  <!-- GOOGLE MEET FLOATING STATUS PANEL -->
   <div id="jitsi-float">
-    <div id="jf-titlebar" id="jf-drag-handle">
-      <span><span class="jitsi-dot" id="jf-dot"></span>📹 VIDEO CONFERENCE</span>
+    <div id="jf-titlebar">
+      <span><span class="jitsi-dot" id="jf-dot"></span>🎥 GOOGLE MEET</span>
       <div id="jf-controls">
         <button class="jf-btn minimize" onclick="minimizeJitsiFloat()">MIN</button>
         <button class="jf-btn" onclick="snapJitsiFloat()">SNAP</button>
@@ -401,9 +408,9 @@
       </div>
     </div>
     <div id="jf-iframe-wrap">
-      <div id="jf-idle"><div class="jf-icon">📹</div>Press LAUNCH in the side panel<br/>to start a video call</div>
+      <div id="jf-idle"><div class="jf-icon">🎥</div>Press START to launch<br/>a Google Meet session</div>
     </div>
-    <div id="jf-resize-hint">↔ drag edges to resize</div>
+    <div id="jf-resize-hint">drag title bar to move</div>
   </div>
 </aside>
 
@@ -1001,23 +1008,24 @@ function toggleMapMax(){
 init();
 
 // ============================================================
-// JITSI — DRAGGABLE FLOATING VIDEO WINDOW
+// GOOGLE MEET — DRAGGABLE FLOATING STATUS PANEL
+// Note: Google Meet blocks iframe embedding by design.
+// This panel opens Meet in a new tab and tracks the session
+// locally, sends the link as a message to all personnel,
+// and logs the call to Google Drive on END.
 // ============================================================
 (function(){
   var floatEl, titlebar, isDragging=false, startX,startY,startL,startT;
-  var minimized=false, savedH;
+  var minimized=false, savedH, currentMeetUrl='';
 
   function init(){
-    floatEl = document.getElementById('jitsi-float');
+    floatEl  = document.getElementById('jitsi-float');
     titlebar = document.getElementById('jf-titlebar');
-    // Default position: right side of map, near top
     floatEl.style.right = '345px';
     floatEl.style.top   = '64px';
     floatEl.style.left  = 'auto';
-    floatEl.style.width = '380px';
-    floatEl.style.height= '280px';
+    floatEl.style.width = '340px';
 
-    // Drag logic
     titlebar.addEventListener('mousedown', onDragStart);
     titlebar.addEventListener('touchstart', onDragStartTouch, {passive:false});
     document.addEventListener('mousemove', onDragMove);
@@ -1030,7 +1038,6 @@ init();
     if(e.target.tagName==='BUTTON') return;
     isDragging=true;
     var r=floatEl.getBoundingClientRect();
-    // Switch to left/top positioning for dragging
     floatEl.style.left=r.left+'px'; floatEl.style.top=r.top+'px'; floatEl.style.right='auto';
     startX=e.clientX; startY=e.clientY; startL=r.left; startT=r.top;
     e.preventDefault();
@@ -1062,79 +1069,116 @@ init();
   }
   function onDragEnd(){ isDragging=false; }
 
+  // Normalise whatever user typed into a proper Meet URL
+  function toMeetUrl(input){
+    input = (input||'').trim();
+    if(!input) return 'https://meet.google.com/new';
+    // Already a full URL
+    if(input.startsWith('http')) return input;
+    // Just a code like "abc-defg-hij"
+    return 'https://meet.google.com/'+input.replace(/[^a-z0-9-]/gi,'');
+  }
+
   window.launchJitsiFloat = function(){
     if(!floatEl) init();
-    var room=(document.getElementById('jitsi-room-in').value||'PARADE26-EOC').trim().replace(/\s+/g,'-');
-    var wrap=document.getElementById('jf-iframe-wrap');
-    wrap.innerHTML='';
-    var ifr=document.createElement('iframe');
-    ifr.src='https://meet.jit.si/'+encodeURIComponent(room);
-    ifr.allow='camera; microphone; fullscreen; display-capture; autoplay';
-    ifr.style.cssText='width:100%;height:100%;border:none;display:block;';
-    wrap.appendChild(ifr);
+    var raw   = document.getElementById('jitsi-room-in').value;
+    currentMeetUrl = toMeetUrl(raw);
+    window._jitsiStartTime = new Date().toLocaleTimeString('en-US',{hour12:false,timeZone:'Asia/Manila'});
+
+    // Open Meet in new tab
+    window.open(currentMeetUrl,'_blank','noopener');
+
+    // Build status panel content
+    var wrap = document.getElementById('jf-iframe-wrap');
+    wrap.innerHTML =
+      '<div id="jf-meet-link">🔗 <a href="'+currentMeetUrl+'" target="_blank">'+currentMeetUrl+'</a></div>'+
+      '<div id="jf-actions">'+
+        '<button class="jf-btn green" onclick="window.open(''+currentMeetUrl+'','_blank','noopener')">REJOIN</button>'+
+        '<button class="jf-btn" onclick="copyMeetLink()">COPY LINK</button>'+
+        '<button class="jf-btn" onclick="broadcastMeetLink()">📢 BROADCAST</button>'+
+      '</div>'+
+      '<div id="jf-status-line">'+
+        '● LIVE since '+window._jitsiStartTime+'<br/>'+
+        'Recording: enabled in Google Meet (host controls)<br/>'+
+        'Recordings auto-save to host's Google Drive'+
+      '</div>';
+
     floatEl.classList.add('show');
     minimized=false;
-    window._jitsiStartTime = new Date().toLocaleTimeString('en-US',{hour12:false,timeZone:'Asia/Manila'});
     document.getElementById('jitsi-dot').classList.add('live');
     document.getElementById('jf-dot').classList.add('live');
     document.getElementById('jitsi-live-badge').innerHTML='<span style="color:#ff4444">● LIVE</span>';
   };
 
+  window.copyMeetLink = function(){
+    if(!currentMeetUrl) return;
+    navigator.clipboard.writeText(currentMeetUrl).then(function(){
+      var btn=document.querySelector('#jf-actions .jf-btn:nth-child(2)');
+      if(btn){btn.textContent='COPIED ✓'; setTimeout(function(){btn.textContent='COPY LINK';},1500);}
+    });
+  };
+
+  window.broadcastMeetLink = function(){
+    if(!currentMeetUrl) return;
+    var cfg=loadConfig();
+    fetch(cfg.sheetUrl,{
+      method:'POST',
+      body:JSON.stringify({
+        action:'sendMessage', name:cfg.commander||'PAGONG',
+        team:'EOC', post:'Commander',
+        body:'📹 VIDEO CALL ACTIVE — Join Google Meet: '+currentMeetUrl,
+        type:'commander', target:'ALL'
+      })
+    }).catch(()=>{});
+    var btn=document.querySelector('#jf-actions .jf-btn:nth-child(3)');
+    if(btn){btn.textContent='SENT ✓'; setTimeout(function(){btn.textContent='📢 BROADCAST';},2000);}
+  };
+
   window.minimizeJitsiFloat = function(){
     if(!floatEl) return;
     if(!minimized){
-      savedH=floatEl.style.height;
-      floatEl.style.height='32px';
-      floatEl.style.overflow='hidden';
+      savedH=floatEl.style.height||'auto';
+      floatEl.style.maxHeight='32px';
       minimized=true;
     } else {
-      floatEl.style.height=savedH||'280px';
-      floatEl.style.overflow='hidden';
+      floatEl.style.maxHeight='none';
       minimized=false;
     }
   };
 
   window.snapJitsiFloat = function(){
     if(!floatEl) return;
-    // Snap to right side of map
     floatEl.style.left='auto'; floatEl.style.right='345px';
-    floatEl.style.top='64px';
-    floatEl.style.width='380px'; floatEl.style.height='280px';
-    minimized=false;
+    floatEl.style.top='64px'; floatEl.style.width='340px';
+    minimized=false; floatEl.style.maxHeight='none';
   };
 
   window.closeJitsiFloat = function(){
     if(!floatEl) return;
-    // Log the call to Google Drive + Sheet
     if(document.getElementById('jf-dot').classList.contains('live')){
-      const room = (document.getElementById('jitsi-room-in').value||'PARADE26-EOC').trim().replace(/\s+/g,'-');
-      const cfg  = loadConfig();
-      const endTime = new Date().toLocaleTimeString('en-US',{hour12:false,timeZone:'Asia/Manila'});
-      fetch(cfg.sheetUrl, {
+      var cfg=loadConfig();
+      var endTime=new Date().toLocaleTimeString('en-US',{hour12:false,timeZone:'Asia/Manila'});
+      fetch(cfg.sheetUrl,{
         method:'POST',
-        body: JSON.stringify({
-          action:      'logVideoCall',
-          room:        room,
-          startedBy:   cfg.commander || 'Commander',
-          timeStart:   window._jitsiStartTime || '',
-          timeEnd:     endTime,
-          participants:[cfg.commander || 'Commander'],
-          notes:       'Session ended by Commander'
+        body:JSON.stringify({
+          action:'logVideoCall', room:currentMeetUrl,
+          startedBy:cfg.commander||'Commander',
+          timeStart:window._jitsiStartTime||'', timeEnd:endTime,
+          participants:[cfg.commander||'Commander'],
+          notes:'Google Meet session — recording in host Drive if enabled'
         })
-      }).then(r=>r.json()).then(res=>{
-        if(res.logUrl) console.log('Video log saved:', res.logUrl);
       }).catch(()=>{});
     }
     floatEl.classList.remove('show');
-    document.getElementById('jf-iframe-wrap').innerHTML='<div id="jf-idle"><div class="jf-icon">📹</div>Press LAUNCH in the side panel<br/>to start a video call</div>';
+    document.getElementById('jf-iframe-wrap').innerHTML=
+      '<div id="jf-idle"><div class="jf-icon">🎥</div>Press START to launch<br/>a Google Meet session</div>';
     document.getElementById('jitsi-dot').classList.remove('live');
     document.getElementById('jf-dot').classList.remove('live');
     document.getElementById('jitsi-live-badge').textContent='IDLE';
-    window._jitsiStartTime = null;
-    minimized=false;
+    currentMeetUrl=''; window._jitsiStartTime=null; minimized=false;
+    floatEl.style.maxHeight='none';
   };
 
-  // Init on load
   document.addEventListener('DOMContentLoaded', init);
 })();
 

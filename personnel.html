@@ -528,37 +528,44 @@ init();
 <button id="jitsi-fab" onclick="toggleJP()" title="Video Conference">📹</button>
 <div id="jitsi-panel">
   <div id="jitsi-panel-hdr">
-    <span><span class="jp-dot" id="jp-dot"></span>VIDEO CONFERENCE</span>
+    <span><span class="jp-dot" id="jp-dot"></span>VIDEO CALL</span>
     <span id="jp-close" onclick="toggleJP()">✕</span>
   </div>
   <div class="jp-row">
-    <input id="jp-room" type="text" placeholder="Room name..." value="PARADE26-EOC"/>
-    <button class="jp-btn" onclick="joinJP()">JOIN</button>
+    <input id="jp-room" type="text" placeholder="Room name..." placeholder="Paste Meet link or code..." value=""/>
+    <button class="jp-btn" onclick="joinJP()">JOIN MEET</button>
     <button class="jp-btn red" onclick="leaveJP()">END</button>
   </div>
   <div id="jp-wrap">
-    <div id="jp-idle">📹 Enter room name<br/>and press JOIN<br/>to start free video call</div>
+    <div id="jp-idle">🎥 Paste a Meet link or code<br/>and press JOIN MEET</div>
   </div>
 </div>
 <script>
 function toggleJP(){
   document.getElementById('jitsi-panel').classList.toggle('open');
 }
+var _meetUrl='';
 function joinJP(){
-  var room=(document.getElementById('jp-room').value||'PARADE26-EOC').trim().replace(/\s+/g,'-');
+  var raw=(document.getElementById('jp-room').value||'').trim();
+  _meetUrl = raw.startsWith('http') ? raw
+    : raw ? 'https://meet.google.com/'+raw.replace(/[^a-z0-9-]/gi,'')
+    : 'https://meet.google.com/new';
+  window.open(_meetUrl,'_blank','noopener');
+  // Show link + rejoin in panel
   var w=document.getElementById('jp-wrap');
-  w.innerHTML='';
-  var ifr=document.createElement('iframe');
-  ifr.src='https://meet.jit.si/'+encodeURIComponent(room);
-  ifr.allow='camera; microphone; fullscreen; display-capture; autoplay';
-  ifr.style.cssText='width:100%;height:220px;border:none;display:block;';
-  w.appendChild(ifr);
+  w.innerHTML='<div style="padding:10px;font-family:monospace;font-size:10px;color:#00e5ff;line-height:1.7;">'+
+    '🎥 <b>Google Meet opened</b><br/>'+
+    '<a href="'+_meetUrl+'" target="_blank" style="color:#00e5ff;word-break:break-all;">'+_meetUrl+'</a><br/><br/>'+
+    '<button onclick="window.open(''+_meetUrl+'','_blank','noopener')" style="background:rgba(0,255,136,.15);border:1px solid #00ff88;color:#00ff88;font-size:9px;padding:3px 8px;cursor:pointer;font-family:monospace;letter-spacing:1px;">REJOIN</button>&nbsp;'+
+    '<button onclick="navigator.clipboard.writeText(''+_meetUrl+'')" style="background:rgba(0,229,255,.1);border:1px solid #00e5ff;color:#00e5ff;font-size:9px;padding:3px 8px;cursor:pointer;font-family:monospace;letter-spacing:1px;">COPY</button>'+
+    '</div>';
   document.getElementById('jp-dot').classList.add('live');
   document.getElementById('jitsi-panel').classList.add('open');
 }
 function leaveJP(){
-  document.getElementById('jp-wrap').innerHTML='<div id="jp-idle">📹 Enter room name<br/>and press JOIN<br/>to start free video call</div>';
+  document.getElementById('jp-wrap').innerHTML='<div id="jp-idle">🎥 Paste a Meet link or code<br/>and press JOIN</div>';
   document.getElementById('jp-dot').classList.remove('live');
+  _meetUrl='';
 }
 </script>
 
