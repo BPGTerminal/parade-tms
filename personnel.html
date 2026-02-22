@@ -92,7 +92,7 @@
     <span style="font-size:22px;">📱</span>
     <div>
       <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#00e5ff;letter-spacing:1px;">ADD TO HOME SCREEN</div>
-      <div style="font-size:12px;color:#c8d8e8;">Install Parade TMS for faster access</div>
+      <div style="font-size:12px;color:#c8d8e8;">Install OMSYS for faster access</div>
     </div>
   </div>
   <button onclick="installApp()" style="background:#00e5ff;border:none;color:#000;font-family:'Share Tech Mono',monospace;font-size:11px;font-weight:bold;padding:8px 16px;cursor:pointer;letter-spacing:1px;white-space:nowrap;">INSTALL</button>
@@ -101,8 +101,9 @@
 
 <div id="login-screen">
   <div class="app-logo">
-    <div class="badge">EOC-TMS</div>
-    <h1>Traffic Management</h1>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:#00e5ff;opacity:0.75;letter-spacing:3px;margin-bottom:4px;">-=pagong=-</div>
+    <div class="badge">OMSYS</div>
+    <h1>Operations Management</h1>
     <p>Personnel Check-In</p>
   </div>
   <div class="event-name-display" id="event-name-disp"></div>
@@ -127,7 +128,25 @@
       <input type="password" id="l-code" placeholder="Enter your team's code"/>
     </div>
     <div class="err-msg" id="err-msg">Wrong access code for selected team.</div>
-    <button class="login-btn" onclick="doLogin()">CHECK IN ▶</button>
+    <button class="login-btn" onclick="doLogin()">REQUEST ACCESS ▶</button>
+  </div>
+
+  <!-- WAITING FOR APPROVAL -->
+  <div id="waiting-screen" style="display:none;text-align:center;padding:20px;">
+    <div style="font-size:40px;margin-bottom:12px;">&#x23F3;</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:#ffaa00;letter-spacing:1px;margin-bottom:8px;">AWAITING COMMANDER APPROVAL</div>
+    <div id="waiting-name" style="font-size:14px;font-weight:700;color:#fff;margin-bottom:4px;"></div>
+    <div id="waiting-detail" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--dim);margin-bottom:20px;"></div>
+    <div style="font-size:10px;color:var(--dim);font-family:'Share Tech Mono',monospace;line-height:1.8;">Your request has been sent to Command.<br/>This page checks automatically every 5 seconds.</div>
+    <button onclick="cancelApprovalRequest()" style="margin-top:20px;background:none;border:1px solid var(--dim);color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 16px;cursor:pointer;">&#x2190; BACK TO LOGIN</button>
+  </div>
+
+  <!-- REJECTED -->
+  <div id="rejected-screen" style="display:none;text-align:center;padding:20px;">
+    <div style="font-size:40px;margin-bottom:12px;">&#x274C;</div>
+    <div style="font-family:'Share Tech Mono',monospace;font-size:13px;color:#ff3b5c;letter-spacing:1px;margin-bottom:8px;">ACCESS DENIED</div>
+    <div style="font-size:11px;color:var(--dim);font-family:'Share Tech Mono',monospace;line-height:1.8;margin-bottom:16px;">Your request was not approved.<br/>Contact your Team Leader.</div>
+    <button onclick="cancelApprovalRequest()" style="background:none;border:1px solid #ff3b5c;color:#ff3b5c;font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 16px;cursor:pointer;">&#x2190; TRY AGAIN</button>
   </div>
 </div>
 
@@ -277,6 +296,9 @@ function init(){
 // ============================================================
 // LOGIN
 // ============================================================
+let _pendingMe = null;
+let _approvalTimer = null;
+
 function doLogin(){
   const name = document.getElementById('l-name').value.trim();
   const teamName = document.getElementById('l-team').value;
@@ -288,7 +310,9 @@ function doLogin(){
   if(!teamName){ alert('Please select your team.'); return; }
   if(!post){ alert('Please enter your assigned post.'); return; }
 
-  const team = (CFG.teams||[]).find(t=>t.name===teamName);
+  const cfg = JSON.parse(localStorage.getItem('tms_config')||'{}');
+  const teams = cfg.teams || CFG.teams || [];
+  const team = teams.find(t=>t.name===teamName);
   if(!team || code !== team.code){
     err.style.display='block';
     document.getElementById('l-code').value='';
@@ -296,30 +320,66 @@ function doLogin(){
   }
   err.style.display='none';
 
-  me = {
-    id:(function(){
-      // Permanent device ID — same phone always gets same ID, prevents duplicates
-      let did = localStorage.getItem('tms_device_id');
-      if (!did) {
-        did = 'D_' + Math.random().toString(36).slice(2,8).toUpperCase() + '_' + Date.now().toString().slice(-4);
-        localStorage.setItem('tms_device_id', did);
-      }
-      return did;
-    })(),
-    name, team:teamName, teamColor:team.color, post
-  };
+  let did = localStorage.getItem('tms_device_id');
+  if (!did) {
+    did = 'D_' + Math.random().toString(36).slice(2,8).toUpperCase() + '_' + Date.now().toString().slice(-4);
+    localStorage.setItem('tms_device_id', did);
+  }
 
+  _pendingMe = { id:did, name, team:teamName, teamColor:team.color, post };
+
+  // Show waiting screen
+  document.getElementById('waiting-screen').style.display='block';
+  document.getElementById('rejected-screen').style.display='none';
+  document.getElementById('waiting-name').textContent = name;
+  document.getElementById('waiting-detail').textContent = teamName + '  ·  ' + post;
+
+  const url = (cfg.sheetUrl || HARDCODED_URL || '');
+  if(!url){ approvalGranted(); return; }
+  fetch(url, {method:'POST', body:JSON.stringify({action:'requestApproval',deviceId:did,name,team:teamName,post})})
+    .then(r=>r.json()).then(d=>{
+      if(d.status==='approved') approvalGranted();
+      else if(d.status==='rejected') showRejected();
+      else startPollingApproval(did, url);
+    }).catch(function(){ approvalGranted(); });
+}
+
+function startPollingApproval(did, url){
+  if(_approvalTimer) clearInterval(_approvalTimer);
+  _approvalTimer = setInterval(function(){
+    fetch(url+'?action=checkApproval&deviceId='+did+'&t='+Date.now(), {cache:'no-store'})
+      .then(r=>r.json()).then(d=>{
+        if(d.status==='approved'){ clearInterval(_approvalTimer); approvalGranted(); }
+        else if(d.status==='rejected'){ clearInterval(_approvalTimer); showRejected(); }
+      }).catch(function(){});
+  }, 5000);
+}
+
+function approvalGranted(){
+  if(_approvalTimer){ clearInterval(_approvalTimer); _approvalTimer=null; }
+  if(!_pendingMe) return;
+  me = _pendingMe; _pendingMe = null;
   document.getElementById('login-screen').style.display='none';
   document.getElementById('app-screen').style.display='flex';
-  document.getElementById('disp-name').textContent=name;
-  document.getElementById('disp-team').textContent=teamName;
-  document.getElementById('disp-team').style.color=team.color;
-  document.getElementById('disp-post').textContent='📍 '+post;
-
-  startGPS();
-  startFetching();
-  sysMsg(`Checked in: ${name} · ${teamName} · ${post}`);
+  document.getElementById('disp-name').textContent=me.name;
+  document.getElementById('disp-team').textContent=me.team;
+  document.getElementById('disp-team').style.color=me.teamColor||'#00e5ff';
+  document.getElementById('disp-post').textContent='📍 '+me.post;
+  startGPS(); startFetching();
+  sysMsg('Access approved — '+me.name+' · '+me.team+' · '+me.post);
   reportCheckIn();
+}
+
+function showRejected(){
+  document.getElementById('waiting-screen').style.display='none';
+  document.getElementById('rejected-screen').style.display='block';
+}
+
+function cancelApprovalRequest(){
+  if(_approvalTimer){ clearInterval(_approvalTimer); _approvalTimer=null; }
+  _pendingMe = null;
+  document.getElementById('waiting-screen').style.display='none';
+  document.getElementById('rejected-screen').style.display='none';
 }
 
 // ============================================================
@@ -553,7 +613,7 @@ init();
       </div>
     </div>
     <div style="font-size:9px;color:#1e3a5f;font-family:'Share Tech Mono',monospace;text-align:right;">
-      © 2025 ALL RIGHTS RESERVED<br/>PARADE TMS · EOC SYSTEM
+      © 2025 ALL RIGHTS RESERVED<br/>OMSYS · EOC SYSTEM
     </div>
   </div>
 
