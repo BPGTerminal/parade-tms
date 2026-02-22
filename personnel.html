@@ -213,20 +213,33 @@ function loadConfig(){
   };
 }
 
-// Refresh config from Sheet on load so team changes etc. are picked up
+// Refresh config from Sheet — called on every page load BEFORE login renders
+// This ensures phones always see latest event name, teams and access codes
 async function refreshConfigFromSheet() {
   try {
-    const url = CFG.sheetUrl || HARDCODED_URL;
-    const res = await fetch(url + '?action=getSettings');
+    const url = HARDCODED_URL; // always use hardcoded URL so new events load
+    const res = await fetch(url + '?action=getSettings&t='+Date.now(), {cache:'no-store'});
     const data = await res.json();
     const cfg = data.settings;
     if (!cfg) return;
-    const merged = {...CFG, ...cfg, sheetUrl: url};
+    // Detect event name change — if different, wipe old cached session
+    const oldCfg = JSON.parse(localStorage.getItem('tms_config')||'{}');
+    if(oldCfg.eventName && cfg.eventName && oldCfg.eventName !== cfg.eventName){
+      // New event — clear old login session but keep device ID
+      const devId = localStorage.getItem('tms_device_id');
+      localStorage.clear();
+      if(devId) localStorage.setItem('tms_device_id', devId);
+    }
+    const merged = {sheetUrl:url, ...cfg};
     if (Array.isArray(cfg.teams)) merged.teams = cfg.teams;
     localStorage.setItem('tms_config', JSON.stringify(merged));
-    // Re-populate team dropdown
-    populateTeams(merged.teams || CFG.teams);
-  } catch(e){}
+    // Re-populate UI with fresh data
+    if(cfg.eventName){
+      const el = document.getElementById('event-name-disp');
+      if(el) el.textContent = cfg.eventName.toUpperCase();
+    }
+    populateTeams(merged.teams || []);
+  } catch(e){ console.log('Config refresh error:',e.message); }
 }
 
 const CFG = loadConfig();
@@ -242,15 +255,21 @@ let msgCount=0, pendingPhoto=null;
 // ============================================================
 // INIT
 // ============================================================
-function init(){
-  // Populate event name
-  if(CFG.eventName) document.getElementById('event-name-disp').textContent=CFG.eventName.toUpperCase();
-  // Populate team dropdown
-  const sel=document.getElementById('l-team');
-  (CFG.teams||[]).forEach(t=>{
-    const o=document.createElement('option');
-    o.value=t.name; o.textContent=t.name; sel.appendChild(o);
+function populateTeams(teams){
+  const sel = document.getElementById('l-team');
+  while(sel.options.length > 1) sel.remove(1);
+  (teams||[]).forEach(t=>{
+    const o = document.createElement('option');
+    o.value = t.name; o.textContent = t.name; sel.appendChild(o);
   });
+}
+
+function init(){
+  // Always use freshest config from localStorage (just set by refreshConfigFromSheet)
+  const cfg = JSON.parse(localStorage.getItem('tms_config')||'{}');
+  const ename = cfg.eventName || CFG.eventName || '';
+  if(ename) document.getElementById('event-name-disp').textContent = ename.toUpperCase();
+  populateTeams(cfg.teams || CFG.teams || []);
   document.getElementById('l-code').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
   document.getElementById('msg-input').addEventListener('keydown',e=>{ if(e.key==='Enter') sendMsg(); });
 }
@@ -374,14 +393,30 @@ async function fetchMsgs(){
     if(!_furl)return;
     const r=await fetch(`${_furl}?action=getMessages&userId=${me.id}`);
     const d=await r.json();
-    if(d.messages && d.messages.length>msgCount){
-      d.messages.slice(msgCount).forEach(m=>{
-        if(m.sender!==me.name && m.type==='commander'){
-          addBubble(m.body+(m.photoUrl?'\n[Photo attached]':''),'from-cmd',m.sender);
-          vibrate();
-        }
-      });
-      msgCount=d.messages.length;
+    if(d.messages){
+      // On first load, scan ALL messages for a Meet link (in case call started before login)
+      if(msgCount===0 && _autoMeetUrl===''){
+        d.messages.slice().reverse().some(m=>{
+          var mx = (m.body||'').match(/https:\/\/meet\.google\.com\/[a-z0-9\-]+/i);
+          if(mx){ _autoMeetUrl=mx[0];
+            var ap=document.getElementById('mp-auto');
+            var au=document.getElementById('mp-auto-url');
+            if(ap&&au){ap.style.display='block';au.textContent=_autoMeetUrl;}
+            var fab=document.getElementById('meet-fab');
+            if(fab){fab.style.background='#ff4444';fab.style.boxShadow='0 0 22px rgba(255,68,68,.9)';fab.textContent='📞';}
+            return true;
+          }
+        });
+      }
+      if(d.messages.length>msgCount){
+        d.messages.slice(msgCount).forEach(m=>{
+          if(m.sender!==me.name && m.type==='commander'){
+            addBubble(m.body+(m.photoUrl?'\n[Photo attached]':''),'from-cmd',m.sender);
+            vibrate();
+          }
+        });
+        msgCount=d.messages.length;
+      }
     }
   }catch(e){}
 }
@@ -391,7 +426,28 @@ function addBubble(text,type,sender){
   log.querySelectorAll('.empty').forEach(e=>e.remove());
   const d=document.createElement('div');
   d.className=`bubble ${type}`;
-  d.innerHTML=`<div class="bubble-hdr">${sender} · ${nowTime()}</div>${text.replace(/\n/g,'<br>')}`;
+  // Detect Meet link — render a big JOIN button automatically
+  var bodyHtml = text.replace(/\n/g,'<br>');
+  var meetMatch = text.match(/https:\/\/meet\.google\.com\/[a-z0-9\-]+/i);
+  if(meetMatch){
+    var mUrl = meetMatch[0];
+    _autoMeetUrl = mUrl;
+    bodyHtml += '<br><a href="'+mUrl+'" target="_blank" style="display:block;margin-top:7px;background:#00ff88;color:#000;font-family:Share Tech Mono,monospace;font-size:12px;font-weight:bold;padding:8px;text-align:center;text-decoration:none;letter-spacing:2px;">▶ JOIN VIDEO CALL</a>';
+    // Alert the FAB button
+    var fab = document.getElementById('meet-fab');
+    if(fab){
+      fab.style.background='#ff4444';
+      fab.style.boxShadow='0 0 22px rgba(255,68,68,.9)';
+      fab.textContent='📞';
+    }
+    // Show auto-join panel
+    var ap = document.getElementById('mp-auto');
+    var au = document.getElementById('mp-auto-url');
+    if(ap && au){ ap.style.display='block'; au.textContent=mUrl; }
+    var dot = document.getElementById('mp-dot');
+    if(dot){ dot.style.background='#ff4444'; dot.style.boxShadow='0 0 6px #ff4444'; }
+  }
+  d.innerHTML=`<div class="bubble-hdr">${sender} · ${nowTime()}</div>${bodyHtml}`;
   log.appendChild(d);
   log.scrollTop=log.scrollHeight;
 }
@@ -585,25 +641,9 @@ function checkMeetBroadcast(messages){
   }
 }
 
-// Auto-check meet link whenever page polls the sheet
-// The polling in personnel.html calls renderMessages() — we patch it
-var _meetCheckDone = false;
-var _meetOrigRender = null;
-document.addEventListener('DOMContentLoaded', function(){
-  // Patch renderMessages if it exists, else poll independently
-  setInterval(function(){
-    // Read message log items from DOM for Meet link
-    var items = document.querySelectorAll('.msg-body,.message-text,.msg-item');
-    items.forEach(function(el){
-      var t = el.textContent || '';
-      if(t.indexOf('meet.google.com') !== -1){
-        var match = t.match(/https:\/\/meet\.google\.com\/[a-z0-9\-]+/i);
-        if(match && match[0] !== _autoMeetUrl){
-          checkMeetBroadcast([{body: t}]);
-        }
-      }
-    });
-  }, 3000);
+document.addEventListener('DOMContentLoaded', async function(){
+  await refreshConfigFromSheet(); // Always get latest event/teams FIRST
+  init();
 });
 </script>
 

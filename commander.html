@@ -632,10 +632,8 @@ function setLayer(key){
 }
 
 function toggleHazard(key){
-  const btn = document.getElementById('btn-'+key);
   const legend = document.getElementById('hazard-legend');
 
-  // Turn off if same layer clicked again
   if(currentHazardKey === key){
     if(activeHazardLayer){ map.removeLayer(activeHazardLayer); activeHazardLayer=null; }
     currentHazardKey = null;
@@ -644,33 +642,65 @@ function toggleHazard(key){
     return;
   }
 
-  // Remove previous hazard
   if(activeHazardLayer){ map.removeLayer(activeHazardLayer); activeHazardLayer=null; }
   ['flood','landslide','storm'].forEach(k=>updateHazardCheck(k,false));
 
   const hcfg = HAZARD_LAYERS[key];
   if(!hcfg) return;
 
-  // Try WMS first
-  try {
-    activeHazardLayer = L.tileLayer.wms(hcfg.url, {
-      layers: hcfg.layers,
-      format: 'image/png',
-      transparent: true,
-      opacity: 0.65,
-      attribution: '© PHIVOLCS Hazard Hunter'
+  const opacity = parseFloat(document.getElementById('hazard-opacity')?.value||65)/100;
+
+  // Try direct WMS first (works if PHIVOLCS has CORS open), then proxy fallback
+  function tryLoad(useProxy){
+    let layer;
+    if(useProxy){
+      // Build tile URL via allorigins CORS proxy with bbox template
+      const base = hcfg.url + '?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap' +
+        '&LAYERS='+encodeURIComponent(hcfg.layers)+
+        '&FORMAT=image%2Fpng&TRANSPARENT=true&WIDTH=256&HEIGHT=256'+
+        '&SRS=EPSG%3A3857&BBOX={bbox-epsg-3857}';
+      const proxyUrl = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(base);
+      layer = L.tileLayer(proxyUrl, {
+        opacity, attribution:'© PHIVOLCS-DOST',
+        tileSize:256, maxZoom:18
+      });
+    } else {
+      layer = L.tileLayer.wms(hcfg.url, {
+        layers: hcfg.layers, format:'image/png',
+        transparent:true, opacity, version:'1.1.1',
+        attribution:'© PHIVOLCS-DOST Hazard Hunter'
+      });
+    }
+
+    layer.addTo(map);
+
+    // If tiles fail, try proxy or show offline notice
+    let tilesRequested=0, tilesFailed=0;
+    layer.on('tileload', function(){ tilesRequested++; });
+    layer.on('tileerror', function(){
+      tilesFailed++;
+      if(!useProxy && tilesFailed>=2){
+        map.removeLayer(layer);
+        tryLoad(true); // retry via proxy
+      } else if(useProxy && tilesFailed>=3){
+        map.removeLayer(layer);
+        activeHazardLayer=null; currentHazardKey=null;
+        updateHazardCheck(key,false); legend.style.display='none';
+        showHazardOfflineNotice(hcfg.label, hcfg.url);
+      }
     });
-    activeHazardLayer.addTo(map);
-  } catch(e) {
-    console.warn('WMS layer failed:', e);
-    showHazardOfflineNotice(hcfg.label);
+    return layer;
+  }
+
+  try {
+    activeHazardLayer = tryLoad(false);
+  } catch(e){
+    showHazardOfflineNotice(hcfg.label, hcfg.url);
     return;
   }
 
   currentHazardKey = key;
   updateHazardCheck(key, true);
-
-  // Show legend
   document.getElementById('leg-title').textContent = hcfg.label;
   document.getElementById('leg-rows').innerHTML = hcfg.legend.map(l=>
     `<div class="leg-row"><div class="leg-dot" style="background:${l.color}"></div>${l.label}</div>`
@@ -678,10 +708,13 @@ function toggleHazard(key){
   legend.style.display='block';
 }
 
-function showHazardOfflineNotice(label){
+function showHazardOfflineNotice(label, url){
   addMessage({
-    sender:'SYSTEM', post:'', type:'system', time:new Date().toLocaleTimeString('en-US',{hour12:false}),
-    body:`Hazard layer "${label}" could not be loaded. Open https://hazardhunter.georisk.gov.ph directly for hazard maps.`
+    sender:'SYSTEM', post:'', type:'system',
+    time:new Date().toLocaleTimeString('en-US',{hour12:false}),
+    body:`⚠️ Hazard layer "${label}" unavailable (CORS restriction). `+
+         `<a href="${url||'https://hazardhunter.georisk.gov.ph'}" target="_blank" `+
+         `style="color:#ff9900;text-decoration:underline;">Open PHIVOLCS Hazard Hunter ↗</a>`
   });
 }
 
@@ -906,6 +939,19 @@ function updateMessages(messages){
   });
 }
 
+function renderMsgBody(body){
+  if(!body) return '';
+  // Linkify any URL
+  return body.replace(/(https?:\/\/[^\s<]+)/gi, function(url){
+    const isMeet = /meet\.google\.com/i.test(url);
+    if(isMeet){
+      return '<span style="color:#c0d8f0">'+url+'</span> '+
+        '<a href="'+url+'" target="_blank" style="display:inline-block;margin-left:4px;background:rgba(0,255,136,.15);border:1px solid #00ff88;color:#00ff88;font-family:Share Tech Mono,monospace;font-size:9px;padding:2px 8px;text-decoration:none;letter-spacing:1px;">▶ JOIN</a>';
+    }
+    return '<a href="'+url+'" target="_blank" style="color:#00e5ff;text-decoration:underline;font-size:10px;">'+url+'</a>';
+  });
+}
+
 function addMessage(msg, save=true){
   const log=document.getElementById('msg-log');
   log.querySelectorAll('.empty').forEach(e=>e.remove());
@@ -918,7 +964,7 @@ function addMessage(msg, save=true){
       <span class="msg-sender" style="color:${teamColor}">${msg.sender}${msg.post?` · ${msg.post}`:''}</span>
       <span class="msg-time">${msg.time}</span>
     </div>
-    <div>${msg.body}</div>
+    <div class="msg-body">${renderMsgBody(msg.body)}</div>
     ${msg.photoUrl?(()=>{
         // Convert drive.google.com/uc?id=X to embeddable thumbnail URL
         const raw = msg.photoUrl;
