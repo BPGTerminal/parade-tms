@@ -79,28 +79,6 @@
   ::-webkit-scrollbar{width:3px;}
   ::-webkit-scrollbar-thumb{background:var(--border);}
   .empty{color:var(--dim);font-size:12px;font-family:'Share Tech Mono',monospace;text-align:center;padding:16px;}
-  /* JITSI */
-  #jitsi-fab{position:fixed;bottom:16px;right:16px;z-index:900;background:#00e5ff;border:none;border-radius:50%;width:52px;height:52px;cursor:pointer;box-shadow:0 0 12px rgba(0,229,255,.5);display:flex;align-items:center;justify-content:center;font-size:22px;color:#000;}
-  #jitsi-fab:hover{background:#00fff5;box-shadow:0 0 20px rgba(0,229,255,.9);}
-  #jitsi-panel{display:none;position:fixed;bottom:80px;right:12px;z-index:901;width:calc(100vw - 24px);max-width:340px;background:rgba(5,8,16,.97);border:1px solid rgba(0,229,255,.3);padding:8px;}
-  #jitsi-panel.open{display:block;}
-  #jitsi-panel-hdr{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;}
-  #jitsi-panel-hdr span{font-family:'Share Tech Mono',monospace;font-size:10px;color:#00e5ff;letter-spacing:1px;}
-  .jp-dot{width:7px;height:7px;border-radius:50%;background:#444;display:inline-block;margin-right:4px;}
-  .jp-dot.live{background:#ff4444;animation:jpulse 1s infinite;}
-  @keyframes jpulse{0%,100%{opacity:1}50%{opacity:.4}}
-  #jp-close{color:#4a6080;font-size:16px;cursor:pointer;font-family:'Share Tech Mono',monospace;line-height:1;}
-  #jp-close:hover{color:#ff4444;}
-  .jp-row{display:flex;gap:4px;margin-bottom:5px;}
-  #jp-room{flex:1;background:rgba(255,255,255,.05);border:1px solid rgba(0,229,255,.25);color:#fff;font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 7px;outline:none;}
-  #jp-room:focus{border-color:#00e5ff;}
-  .jp-btn{background:rgba(0,229,255,.1);border:1px solid rgba(0,229,255,.3);color:#00e5ff;font-family:'Share Tech Mono',monospace;font-size:9px;padding:4px 9px;cursor:pointer;letter-spacing:1px;transition:all .2s;white-space:nowrap;}
-  .jp-btn:hover{background:#00e5ff;color:#000;}
-  .jp-btn.red{border-color:#ff4444;color:#ff4444;}
-  .jp-btn.red:hover{background:#ff4444;color:#fff;}
-  #jp-wrap{width:100%;background:#000;border:1px solid rgba(0,229,255,.15);min-height:130px;display:flex;align-items:center;justify-content:center;}
-  #jp-wrap iframe{width:100%;height:180px;border:none;display:block;}
-  #jp-idle{color:#4a6080;font-family:'Share Tech Mono',monospace;font-size:10px;text-align:center;padding:16px 8px;letter-spacing:1px;line-height:1.6;}
 
 </style>
 </head>
@@ -524,49 +502,109 @@ init();
   </div>
 
 
-<!-- JITSI FLOAT BUTTON + PANEL -->
-<button id="jitsi-fab" onclick="toggleJP()" title="Video Conference">📹</button>
-<div id="jitsi-panel">
-  <div id="jitsi-panel-hdr">
-    <span><span class="jp-dot" id="jp-dot"></span>VIDEO CALL</span>
-    <span id="jp-close" onclick="toggleJP()">✕</span>
+<!-- GOOGLE MEET ONE-CLICK JOIN -->
+<button id="meet-fab" onclick="toggleMeetPanel()" title="Join Video Call" style="
+  position:fixed;bottom:16px;right:16px;z-index:900;
+  background:#00ff88;border:none;border-radius:50%;
+  width:56px;height:56px;cursor:pointer;
+  box-shadow:0 0 14px rgba(0,255,136,.6);
+  display:flex;align-items:center;justify-content:center;
+  font-size:24px;color:#000;transition:all .3s;
+">🎥</button>
+
+<div id="meet-panel" style="
+  display:none;position:fixed;bottom:84px;right:12px;z-index:901;
+  width:calc(100vw - 24px);max-width:320px;
+  background:rgba(5,8,16,.97);border:1px solid rgba(0,255,136,.35);
+  padding:10px;font-family:'Share Tech Mono',monospace;
+">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+    <span style="font-size:10px;color:#00ff88;letter-spacing:1px;"><span id="mp-dot" style="width:7px;height:7px;border-radius:50%;background:#444;display:inline-block;margin-right:5px;"></span>🎥 VIDEO CALL</span>
+    <span onclick="toggleMeetPanel()" style="color:#4a6080;cursor:pointer;font-size:14px;">✕</span>
   </div>
-  <div class="jp-row">
-    <input id="jp-room" type="text" placeholder="Room name..." placeholder="Paste Meet link or code..." value=""/>
-    <button class="jp-btn" onclick="joinJP()">JOIN MEET</button>
-    <button class="jp-btn red" onclick="leaveJP()">END</button>
+
+  <!-- Auto-detected link from Commander broadcast -->
+  <div id="mp-auto" style="display:none;margin-bottom:8px;padding:8px;background:rgba(0,255,136,.08);border:1px solid rgba(0,255,136,.2);">
+    <div style="font-size:8px;color:#00ff88;margin-bottom:4px;letter-spacing:1px;">📢 COMMANDER STARTED A CALL</div>
+    <div id="mp-auto-url" style="font-size:9px;color:#c0d8f0;word-break:break-all;margin-bottom:6px;"></div>
+    <button onclick="joinAutoMeet()" style="width:100%;background:#00ff88;border:none;color:#000;font-family:'Share Tech Mono',monospace;font-size:11px;padding:8px;cursor:pointer;letter-spacing:1px;font-weight:bold;">▶ JOIN NOW</button>
   </div>
-  <div id="jp-wrap">
-    <div id="jp-idle">🎥 Paste a Meet link or code<br/>and press JOIN MEET</div>
+
+  <!-- Manual fallback -->
+  <div id="mp-manual">
+    <div style="font-size:8px;color:var(--dim,#4a6080);margin-bottom:5px;letter-spacing:0.5px;">Or paste a Meet link manually:</div>
+    <div style="display:flex;gap:4px;">
+      <input id="mp-url" placeholder="meet.google.com/..." style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(0,255,136,.25);color:#fff;font-family:'Share Tech Mono',monospace;font-size:10px;padding:5px 7px;outline:none;"/>
+      <button onclick="joinManualMeet()" style="background:rgba(0,255,136,.15);border:1px solid #00ff88;color:#00ff88;font-family:'Share Tech Mono',monospace;font-size:9px;padding:5px 10px;cursor:pointer;letter-spacing:1px;white-space:nowrap;">JOIN</button>
+    </div>
   </div>
+  <div style="font-size:7px;color:#4a6080;margin-top:6px;letter-spacing:0.5px;">No app needed · opens in browser tab</div>
 </div>
+
 <script>
-function toggleJP(){
-  document.getElementById('jitsi-panel').classList.toggle('open');
+var _autoMeetUrl = '';
+
+function toggleMeetPanel(){
+  var p = document.getElementById('meet-panel');
+  p.style.display = p.style.display==='none' ? 'block' : 'none';
 }
-var _meetUrl='';
-function joinJP(){
-  var raw=(document.getElementById('jp-room').value||'').trim();
-  _meetUrl = raw.startsWith('http') ? raw
-    : raw ? 'https://meet.google.com/'+raw.replace(/[^a-z0-9-]/gi,'')
-    : 'https://meet.google.com/new';
-  window.open(_meetUrl,'_blank','noopener');
-  // Show link + rejoin in panel
-  var w=document.getElementById('jp-wrap');
-  w.innerHTML='<div style="padding:10px;font-family:monospace;font-size:10px;color:#00e5ff;line-height:1.7;">'+
-    '🎥 <b>Google Meet opened</b><br/>'+
-    '<a href="'+_meetUrl+'" target="_blank" style="color:#00e5ff;word-break:break-all;">'+_meetUrl+'</a><br/><br/>'+
-    '<button onclick="window.open(''+_meetUrl+'','_blank','noopener')" style="background:rgba(0,255,136,.15);border:1px solid #00ff88;color:#00ff88;font-size:9px;padding:3px 8px;cursor:pointer;font-family:monospace;letter-spacing:1px;">REJOIN</button>&nbsp;'+
-    '<button onclick="navigator.clipboard.writeText(''+_meetUrl+'')" style="background:rgba(0,229,255,.1);border:1px solid #00e5ff;color:#00e5ff;font-size:9px;padding:3px 8px;cursor:pointer;font-family:monospace;letter-spacing:1px;">COPY</button>'+
-    '</div>';
-  document.getElementById('jp-dot').classList.add('live');
-  document.getElementById('jitsi-panel').classList.add('open');
+
+function joinAutoMeet(){
+  if(_autoMeetUrl) window.open(_autoMeetUrl,'_blank','noopener');
 }
-function leaveJP(){
-  document.getElementById('jp-wrap').innerHTML='<div id="jp-idle">🎥 Paste a Meet link or code<br/>and press JOIN</div>';
-  document.getElementById('jp-dot').classList.remove('live');
-  _meetUrl='';
+
+function joinManualMeet(){
+  var v = document.getElementById('mp-url').value.trim();
+  if(!v) return;
+  var url = v.startsWith('http') ? v : 'https://meet.google.com/'+v.replace(/[^a-z0-9-]/gi,'');
+  window.open(url,'_blank','noopener');
 }
+
+// Watch incoming messages for a Meet link broadcast from Commander
+function checkMeetBroadcast(messages){
+  if(!messages || !messages.length) return;
+  // Scan last 20 messages newest-first
+  var recent = messages.slice(-20).reverse();
+  for(var i=0;i<recent.length;i++){
+    var m = recent[i];
+    if(m.body && m.body.indexOf('meet.google.com') !== -1){
+      var match = m.body.match(/https:\/\/meet\.google\.com\/[a-z0-9\-]+/i);
+      if(match){
+        _autoMeetUrl = match[0];
+        document.getElementById('mp-auto').style.display='block';
+        document.getElementById('mp-auto-url').textContent = _autoMeetUrl;
+        document.getElementById('mp-dot').style.background='#ff4444';
+        document.getElementById('mp-dot').style.animation='jpulse 1s infinite';
+        // Pulse the FAB to alert personnel
+        document.getElementById('meet-fab').style.boxShadow='0 0 24px rgba(255,68,68,.9)';
+        document.getElementById('meet-fab').style.background='#ff4444';
+        document.getElementById('meet-fab').textContent='📞';
+        return;
+      }
+    }
+  }
+}
+
+// Auto-check meet link whenever page polls the sheet
+// The polling in personnel.html calls renderMessages() — we patch it
+var _meetCheckDone = false;
+var _meetOrigRender = null;
+document.addEventListener('DOMContentLoaded', function(){
+  // Patch renderMessages if it exists, else poll independently
+  setInterval(function(){
+    // Read message log items from DOM for Meet link
+    var items = document.querySelectorAll('.msg-body,.message-text,.msg-item');
+    items.forEach(function(el){
+      var t = el.textContent || '';
+      if(t.indexOf('meet.google.com') !== -1){
+        var match = t.match(/https:\/\/meet\.google\.com\/[a-z0-9\-]+/i);
+        if(match && match[0] !== _autoMeetUrl){
+          checkMeetBroadcast([{body: t}]);
+        }
+      }
+    });
+  }, 3000);
+});
 </script>
 
 </body>

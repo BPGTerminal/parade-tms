@@ -380,19 +380,20 @@
     </div>
   </div>
 
-  <!-- GOOGLE MEET — sidebar launcher -->
+  <!-- GOOGLE MEET — one-click launcher -->
   <div id="jitsi-section">
     <div id="jitsi-hdr">
-      <span><span class="jitsi-dot" id="jitsi-dot"></span>📹 VIDEO CALL</span>
+      <span><span class="jitsi-dot" id="jitsi-dot"></span>🎥 VIDEO CALL</span>
       <span id="jitsi-live-badge" style="font-size:9px;color:var(--dim);">IDLE</span>
     </div>
     <div id="jitsi-body">
-      <div class="jitsi-row">
-        <input id="jitsi-room-in" type="text" placeholder="Paste Meet link or code..." style="font-size:9px;"/>
-        <button class="jbtn green" onclick="launchJitsiFloat()">START</button>
+      <div class="jitsi-row" style="margin-bottom:3px;">
+        <button class="jbtn green" style="flex:1;padding:6px;" onclick="launchJitsiFloat()">▶ START CALL</button>
+        <button class="jbtn red" onclick="closeJitsiFloat()">END</button>
       </div>
-      <div style="font-size:8px;color:var(--dim);font-family:'Share Tech Mono',monospace;letter-spacing:0.5px;padding:2px 0 4px 0;line-height:1.5;">
-        Paste a Google Meet link · opens in new tab<br/>Float panel tracks status &amp; shares link to team
+      <div id="meet-link-display" style="display:none;font-family:'Share Tech Mono',monospace;font-size:8px;color:#00e5ff;padding:3px 0;word-break:break-all;"></div>
+      <div style="font-size:8px;color:var(--dim);font-family:'Share Tech Mono',monospace;letter-spacing:0.5px;padding:2px 0 2px 0;line-height:1.5;">
+        One click · auto-broadcasts link to all phones
       </div>
     </div>
   </div>
@@ -408,7 +409,7 @@
       </div>
     </div>
     <div id="jf-iframe-wrap">
-      <div id="jf-idle"><div class="jf-icon">🎥</div>Press START to launch<br/>a Google Meet session</div>
+      <div id="jf-idle"><div class="jf-icon">🎥</div>Press ▶ START CALL<br/>to launch Google Meet</div>
     </div>
     <div id="jf-resize-hint">drag title bar to move</div>
   </div>
@@ -520,9 +521,12 @@ function init(){
 }
 
 function updateHeader(){
-  const title = CFG.eventName ? `${CFG.eventName} <span>// Commander</span>` : `Traffic Management <span>// Commander</span>`;
-  document.getElementById('hdr-title').innerHTML = title;
-  document.title = `EOC Dashboard — ${CFG.eventName || 'TMS'}`;
+  const name = CFG.eventName || "Pista i ang Kanyog'an";
+  const cmd  = CFG.commander || 'PAGONG';
+  document.getElementById('hdr-title').innerHTML = `${name} <span>// COMMANDER</span>`;
+  const lbl = document.getElementById('commander-label');
+  if(lbl) lbl.textContent = cmd;
+  document.title = `EOC Dashboard — ${name}`;
 }
 
 // ============================================================
@@ -535,8 +539,8 @@ const TILE_LAYERS = {
     filter: 'brightness(.75) saturate(.5) hue-rotate(200deg)'
   },
   satellite: {
-    url: 'https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}',
-    attr: '© Google Maps', maxZoom:20,
+    url: 'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    attr: '© Esri World Imagery', maxZoom:19,
     filter: 'brightness(.9) saturate(.9)'
   },
   topo: {
@@ -1081,26 +1085,32 @@ init();
 
   window.launchJitsiFloat = function(){
     if(!floatEl) init();
-    var raw   = document.getElementById('jitsi-room-in').value;
-    currentMeetUrl = toMeetUrl(raw);
+    // Fixed room based on event name — no user input needed
+    var cfg = loadConfig();
+    var roomCode = (cfg.eventName||'PARADE26-EOC').replace(/[^a-z0-9]/gi,'-').toLowerCase().slice(0,28);
+    currentMeetUrl = 'https://meet.google.com/new?authuser=0';
+    // We open a new Meet room — Google assigns the code automatically
+    // After host creates it, BROADCAST sends the link to all personnel
     window._jitsiStartTime = new Date().toLocaleTimeString('en-US',{hour12:false,timeZone:'Asia/Manila'});
 
-    // Open Meet in new tab
     window.open(currentMeetUrl,'_blank','noopener');
 
-    // Build status panel content
     var wrap = document.getElementById('jf-iframe-wrap');
     wrap.innerHTML =
-      '<div id="jf-meet-link">🔗 <a href="'+currentMeetUrl+'" target="_blank">'+currentMeetUrl+'</a></div>'+
-      '<div id="jf-actions">'+
-        '<button class="jf-btn green" onclick="window.open(''+currentMeetUrl+'','_blank','noopener')">REJOIN</button>'+
-        '<button class="jf-btn" onclick="copyMeetLink()">COPY LINK</button>'+
-        '<button class="jf-btn" onclick="broadcastMeetLink()">📢 BROADCAST</button>'+
+      '<div id="jf-status-line" style="padding:10px 0 6px 0;">'+
+        '<span style="color:#ff4444;font-size:11px;">● LIVE</span> since '+window._jitsiStartTime+'<br/><br/>'+
+        '<span style="color:var(--dim);font-size:8px;">Google Meet opened in new tab.<br/>'+
+        'Copy the room link from Meet,<br/>paste below and BROADCAST to team.</span>'+
       '</div>'+
-      '<div id="jf-status-line">'+
-        '● LIVE since '+window._jitsiStartTime+'<br/>'+
-        'Recording: enabled in Google Meet (host controls)<br/>'+
-        'Recordings auto-save to host's Google Drive'+
+      '<div style="display:flex;gap:4px;margin:6px 0;">'+
+        '<input id="jf-paste-url" placeholder="Paste Meet link here..." style="flex:1;background:rgba(255,255,255,.06);border:1px solid rgba(0,229,255,.3);color:#fff;font-family:Share Tech Mono,monospace;font-size:9px;padding:4px 6px;outline:none;"/>'+
+      '</div>'+
+      '<div id="jf-actions">'+
+        '<button class="jf-btn green" onclick="broadcastMeetLink()">📢 BROADCAST TO ALL</button>'+
+        '<button class="jf-btn" onclick="copyMeetLink()">COPY</button>'+
+      '</div>'+
+      '<div id="jf-status-line" style="margin-top:8px;font-size:7px;color:var(--dim);">'+
+        'Recording: press Record inside Meet · saves to your Drive'+
       '</div>';
 
     floatEl.classList.add('show');
@@ -1108,6 +1118,8 @@ init();
     document.getElementById('jitsi-dot').classList.add('live');
     document.getElementById('jf-dot').classList.add('live');
     document.getElementById('jitsi-live-badge').innerHTML='<span style="color:#ff4444">● LIVE</span>';
+    var disp = document.getElementById('meet-link-display');
+    if(disp){disp.style.display='block';disp.textContent='Meet opened in new tab — paste link above';}
   };
 
   window.copyMeetLink = function(){
@@ -1119,19 +1131,26 @@ init();
   };
 
   window.broadcastMeetLink = function(){
-    if(!currentMeetUrl) return;
+    var pasteEl = document.getElementById('jf-paste-url');
+    var url = pasteEl ? pasteEl.value.trim() : currentMeetUrl;
+    if(!url) { alert('Paste the Meet link first!'); return; }
+    currentMeetUrl = url;
     var cfg=loadConfig();
     fetch(cfg.sheetUrl,{
       method:'POST',
       body:JSON.stringify({
         action:'sendMessage', name:cfg.commander||'PAGONG',
         team:'EOC', post:'Commander',
-        body:'📹 VIDEO CALL ACTIVE — Join Google Meet: '+currentMeetUrl,
+        body:'🎥 VIDEO CALL ACTIVE — tap to join: '+url,
         type:'commander', target:'ALL'
       })
     }).catch(()=>{});
-    var btn=document.querySelector('#jf-actions .jf-btn:nth-child(3)');
-    if(btn){btn.textContent='SENT ✓'; setTimeout(function(){btn.textContent='📢 BROADCAST';},2000);}
+    // Also show as clickable in comms log
+    var btn=document.querySelector('#jf-actions .jf-btn.green');
+    if(btn){btn.textContent='✓ SENT TO ALL'; btn.style.borderColor='#00ff88';
+      setTimeout(function(){btn.textContent='📢 BROADCAST TO ALL';},3000);}
+    var disp=document.getElementById('meet-link-display');
+    if(disp){disp.textContent='Broadcast: '+url;}
   };
 
   window.minimizeJitsiFloat = function(){
@@ -1171,7 +1190,7 @@ init();
     }
     floatEl.classList.remove('show');
     document.getElementById('jf-iframe-wrap').innerHTML=
-      '<div id="jf-idle"><div class="jf-icon">🎥</div>Press START to launch<br/>a Google Meet session</div>';
+      '<div id="jf-idle"><div class="jf-icon">🎥</div>Press ▶ START CALL<br/>to launch Google Meet</div>';
     document.getElementById('jitsi-dot').classList.remove('live');
     document.getElementById('jf-dot').classList.remove('live');
     document.getElementById('jitsi-live-badge').textContent='IDLE';
