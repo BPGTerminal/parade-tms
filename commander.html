@@ -93,14 +93,13 @@
   #cmd-input:focus{border-color:var(--accent);}
   #cmd-input::placeholder{color:var(--dim);}
   #send-btn{background:var(--accent2);border:none;color:#fff;font-family:'Share Tech Mono',monospace;font-size:11px;padding:0 12px;cursor:pointer;letter-spacing:1px;}
-  /* JITSI VIDEO CONFERENCE */
+  /* JITSI VIDEO CONFERENCE — sidebar trigger */
   #jitsi-section{border-top:1px solid var(--border);}
   #jitsi-hdr{display:flex;align-items:center;justify-content:space-between;padding:7px 10px;cursor:pointer;user-select:none;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;color:var(--accent);background:rgba(0,229,255,.05);}
   #jitsi-hdr:hover{background:rgba(0,229,255,.1);}
   .jitsi-dot{width:7px;height:7px;border-radius:50%;background:#444;display:inline-block;margin-right:5px;}
   .jitsi-dot.live{background:#ff4444;animation:pulse 1s infinite;}
-  #jitsi-body{display:none;padding:6px;background:rgba(0,0,0,.25);}
-  #jitsi-body.open{display:block;}
+  #jitsi-body{padding:6px;background:rgba(0,0,0,.25);}
   .jitsi-row{display:flex;gap:4px;margin-bottom:5px;}
   #jitsi-room-in{flex:1;background:rgba(255,255,255,.05);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:10px;padding:4px 7px;outline:none;letter-spacing:1px;}
   #jitsi-room-in:focus{border-color:var(--accent);}
@@ -108,9 +107,36 @@
   .jbtn:hover{background:var(--accent);color:#000;}
   .jbtn.red{border-color:#ff4444;color:#ff4444;}
   .jbtn.red:hover{background:#ff4444;color:#fff;}
-  #jitsi-wrap{width:100%;background:#000;border:1px solid var(--border);position:relative;min-height:140px;display:flex;align-items:center;justify-content:center;}
-  #jitsi-wrap iframe{width:100%;height:180px;border:none;display:block;}
-  #jitsi-idle{color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:10px;text-align:center;padding:16px 8px;letter-spacing:1px;}
+
+  /* JITSI FLOATING WINDOW */
+  #jitsi-float{
+    display:none;position:fixed;z-index:8000;
+    width:380px;min-width:220px;min-height:180px;
+    background:rgba(5,8,16,.96);border:1px solid rgba(0,229,255,.4);
+    box-shadow:0 0 24px rgba(0,229,255,.2);
+    flex-direction:column;resize:both;overflow:hidden;
+  }
+  #jitsi-float.show{display:flex;}
+  #jf-titlebar{
+    display:flex;align-items:center;justify-content:space-between;
+    padding:5px 8px;background:rgba(0,229,255,.08);
+    cursor:grab;user-select:none;flex-shrink:0;
+    border-bottom:1px solid rgba(0,229,255,.2);
+  }
+  #jf-titlebar:active{cursor:grabbing;}
+  #jf-titlebar span{font-family:'Share Tech Mono',monospace;font-size:9px;color:#00e5ff;letter-spacing:1px;}
+  #jf-controls{display:flex;gap:4px;align-items:center;}
+  .jf-btn{background:none;border:1px solid rgba(0,229,255,.3);color:#00e5ff;font-family:'Share Tech Mono',monospace;font-size:8px;padding:2px 6px;cursor:pointer;letter-spacing:1px;transition:all .2s;white-space:nowrap;}
+  .jf-btn:hover{background:#00e5ff;color:#000;}
+  .jf-btn.red{border-color:#ff4444;color:#ff4444;}
+  .jf-btn.red:hover{background:#ff4444;color:#fff;}
+  .jf-btn.minimize{border-color:#ffaa00;color:#ffaa00;}
+  .jf-btn.minimize:hover{background:#ffaa00;color:#000;}
+  #jf-iframe-wrap{flex:1;background:#000;position:relative;overflow:hidden;min-height:0;}
+  #jf-iframe-wrap iframe{width:100%;height:100%;border:none;display:block;}
+  #jf-idle{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;text-align:center;gap:6px;padding:12px;}
+  #jf-idle .jf-icon{font-size:30px;opacity:0.4;}
+  #jf-resize-hint{font-size:7px;color:rgba(0,229,255,.3);font-family:'Share Tech Mono',monospace;text-align:right;padding:1px 4px;flex-shrink:0;letter-spacing:0.5px;pointer-events:none;}
   
   /* PHOTO MODAL */
   #photo-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:center;justify-content:center;}
@@ -347,22 +373,37 @@
     </div>
   </div>
 
-  <!-- JITSI VIDEO / VOICE CONFERENCE -->
+  <!-- JITSI VIDEO CONFERENCE — sidebar launcher -->
   <div id="jitsi-section">
-    <div id="jitsi-hdr" onclick="toggleJitsi()">
+    <div id="jitsi-hdr">
       <span><span class="jitsi-dot" id="jitsi-dot"></span>📹 VIDEO CONFERENCE</span>
-      <span id="jitsi-hdr-status" style="font-size:9px;color:var(--dim);">IDLE ▼</span>
+      <span id="jitsi-live-badge" style="font-size:9px;color:var(--dim);">IDLE</span>
     </div>
     <div id="jitsi-body">
       <div class="jitsi-row">
-        <input id="jitsi-room-in" type="text" placeholder="Room name (e.g. PARADE26-EOC)" value="PARADE26-EOC"/>
-        <button class="jbtn" onclick="joinJitsi()">JOIN</button>
-        <button class="jbtn red" onclick="leaveJitsi()">END</button>
+        <input id="jitsi-room-in" type="text" placeholder="Room name..." value="PARADE26-EOC"/>
+        <button class="jbtn" onclick="launchJitsiFloat()">LAUNCH</button>
       </div>
-      <div id="jitsi-wrap">
-        <div id="jitsi-idle">▶ Enter a room name and press JOIN<br/>to start a free video call</div>
+      <div style="font-size:8px;color:var(--dim);font-family:'Share Tech Mono',monospace;letter-spacing:0.5px;padding:2px 0 4px 0;">
+        Opens a draggable &amp; resizable video window over the map
       </div>
     </div>
+  </div>
+
+  <!-- JITSI FLOATING WINDOW (over map) -->
+  <div id="jitsi-float">
+    <div id="jf-titlebar" id="jf-drag-handle">
+      <span><span class="jitsi-dot" id="jf-dot"></span>📹 VIDEO CONFERENCE</span>
+      <div id="jf-controls">
+        <button class="jf-btn minimize" onclick="minimizeJitsiFloat()">MIN</button>
+        <button class="jf-btn" onclick="snapJitsiFloat()">SNAP</button>
+        <button class="jf-btn red" onclick="closeJitsiFloat()">END ✕</button>
+      </div>
+    </div>
+    <div id="jf-iframe-wrap">
+      <div id="jf-idle"><div class="jf-icon">📹</div>Press LAUNCH in the side panel<br/>to start a video call</div>
+    </div>
+    <div id="jf-resize-hint">↔ drag edges to resize</div>
   </div>
 </aside>
 
@@ -960,41 +1001,120 @@ function toggleMapMax(){
 init();
 
 // ============================================================
-// JITSI VIDEO CONFERENCE
+// JITSI — DRAGGABLE FLOATING VIDEO WINDOW
 // ============================================================
-let jitsiAPI = null;
+(function(){
+  var floatEl, titlebar, isDragging=false, startX,startY,startL,startT;
+  var minimized=false, savedH;
 
-function toggleJitsi(){
-  const body = document.getElementById('jitsi-body');
-  const status = document.getElementById('jitsi-hdr-status');
-  body.classList.toggle('open');
-  status.textContent = body.classList.contains('open') ? 'OPEN ▲' : 'IDLE ▼';
-}
+  function init(){
+    floatEl = document.getElementById('jitsi-float');
+    titlebar = document.getElementById('jf-titlebar');
+    // Default position: right side of map, near top
+    floatEl.style.right = '345px';
+    floatEl.style.top   = '64px';
+    floatEl.style.left  = 'auto';
+    floatEl.style.width = '380px';
+    floatEl.style.height= '280px';
 
-function joinJitsi(){
-  const room = (document.getElementById('jitsi-room-in').value||'PARADE26-EOC').trim().replace(/\s+/g,'-');
-  const wrap = document.getElementById('jitsi-wrap');
-  // Remove old iframe if any
-  wrap.innerHTML = '';
-  // Use Jitsi public server via iframe — no API key needed
-  const iframe = document.createElement('iframe');
-  iframe.src = `https://meet.jit.si/${encodeURIComponent(room)}`;
-  iframe.allow = 'camera; microphone; fullscreen; display-capture; autoplay';
-  iframe.style.cssText = 'width:100%;height:220px;border:none;display:block;';
-  wrap.appendChild(iframe);
-  // Update header dot
-  document.getElementById('jitsi-dot').classList.add('live');
-  document.getElementById('jitsi-hdr-status').innerHTML = '<span style="color:#ff4444">● LIVE</span> ▲';
-  // Make sure panel is open
-  document.getElementById('jitsi-body').classList.add('open');
-}
+    // Drag logic
+    titlebar.addEventListener('mousedown', onDragStart);
+    titlebar.addEventListener('touchstart', onDragStartTouch, {passive:false});
+    document.addEventListener('mousemove', onDragMove);
+    document.addEventListener('touchmove', onDragMoveTouch, {passive:false});
+    document.addEventListener('mouseup',  onDragEnd);
+    document.addEventListener('touchend', onDragEnd);
+  }
 
-function leaveJitsi(){
-  const wrap = document.getElementById('jitsi-wrap');
-  wrap.innerHTML = '<div id="jitsi-idle">▶ Enter a room name and press JOIN<br/>to start a free video call</div>';
-  document.getElementById('jitsi-dot').classList.remove('live');
-  document.getElementById('jitsi-hdr-status').textContent = 'IDLE ▼';
-}
+  function onDragStart(e){
+    if(e.target.tagName==='BUTTON') return;
+    isDragging=true;
+    var r=floatEl.getBoundingClientRect();
+    // Switch to left/top positioning for dragging
+    floatEl.style.left=r.left+'px'; floatEl.style.top=r.top+'px'; floatEl.style.right='auto';
+    startX=e.clientX; startY=e.clientY; startL=r.left; startT=r.top;
+    e.preventDefault();
+  }
+  function onDragStartTouch(e){
+    if(e.target.tagName==='BUTTON') return;
+    var t=e.touches[0];
+    isDragging=true;
+    var r=floatEl.getBoundingClientRect();
+    floatEl.style.left=r.left+'px'; floatEl.style.top=r.top+'px'; floatEl.style.right='auto';
+    startX=t.clientX; startY=t.clientY; startL=r.left; startT=r.top;
+    e.preventDefault();
+  }
+  function onDragMove(e){
+    if(!isDragging) return;
+    var dx=e.clientX-startX, dy=e.clientY-startY;
+    var newL=Math.max(0,Math.min(startL+dx, window.innerWidth-floatEl.offsetWidth));
+    var newT=Math.max(0,Math.min(startT+dy, window.innerHeight-40));
+    floatEl.style.left=newL+'px'; floatEl.style.top=newT+'px';
+  }
+  function onDragMoveTouch(e){
+    if(!isDragging) return;
+    var t=e.touches[0];
+    var dx=t.clientX-startX, dy=t.clientY-startY;
+    var newL=Math.max(0,Math.min(startL+dx, window.innerWidth-floatEl.offsetWidth));
+    var newT=Math.max(0,Math.min(startT+dy, window.innerHeight-40));
+    floatEl.style.left=newL+'px'; floatEl.style.top=newT+'px';
+    e.preventDefault();
+  }
+  function onDragEnd(){ isDragging=false; }
+
+  window.launchJitsiFloat = function(){
+    if(!floatEl) init();
+    var room=(document.getElementById('jitsi-room-in').value||'PARADE26-EOC').trim().replace(/\s+/g,'-');
+    var wrap=document.getElementById('jf-iframe-wrap');
+    wrap.innerHTML='';
+    var ifr=document.createElement('iframe');
+    ifr.src='https://meet.jit.si/'+encodeURIComponent(room);
+    ifr.allow='camera; microphone; fullscreen; display-capture; autoplay';
+    ifr.style.cssText='width:100%;height:100%;border:none;display:block;';
+    wrap.appendChild(ifr);
+    floatEl.classList.add('show');
+    minimized=false;
+    document.getElementById('jitsi-dot').classList.add('live');
+    document.getElementById('jf-dot').classList.add('live');
+    document.getElementById('jitsi-live-badge').innerHTML='<span style="color:#ff4444">● LIVE</span>';
+  };
+
+  window.minimizeJitsiFloat = function(){
+    if(!floatEl) return;
+    if(!minimized){
+      savedH=floatEl.style.height;
+      floatEl.style.height='32px';
+      floatEl.style.overflow='hidden';
+      minimized=true;
+    } else {
+      floatEl.style.height=savedH||'280px';
+      floatEl.style.overflow='hidden';
+      minimized=false;
+    }
+  };
+
+  window.snapJitsiFloat = function(){
+    if(!floatEl) return;
+    // Snap to right side of map
+    floatEl.style.left='auto'; floatEl.style.right='345px';
+    floatEl.style.top='64px';
+    floatEl.style.width='380px'; floatEl.style.height='280px';
+    minimized=false;
+  };
+
+  window.closeJitsiFloat = function(){
+    if(!floatEl) return;
+    floatEl.classList.remove('show');
+    document.getElementById('jf-iframe-wrap').innerHTML='<div id="jf-idle"><div class="jf-icon">📹</div>Press LAUNCH in the side panel<br/>to start a video call</div>';
+    document.getElementById('jitsi-dot').classList.remove('live');
+    document.getElementById('jf-dot').classList.remove('live');
+    document.getElementById('jitsi-live-badge').textContent='IDLE';
+    minimized=false;
+  };
+
+  // Init on load
+  document.addEventListener('DOMContentLoaded', init);
+})();
 
 </script>
 
