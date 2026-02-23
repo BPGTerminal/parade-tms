@@ -168,7 +168,10 @@
   .ap-reject{flex:1;background:rgba(255,59,92,.08);border:1px solid #ff3b5c;color:#ff3b5c;font-family:'Share Tech Mono',monospace;font-size:9px;padding:4px;cursor:pointer;letter-spacing:1px;transition:all .2s;}
   .ap-reject:hover{background:#ff3b5c;color:#fff;}
   /* Approval badge on header */
-  #approval-badge{display:none;background:#ffaa00;color:#000;font-family:'Share Tech Mono',monospace;font-size:9px;font-weight:bold;padding:1px 6px;border-radius:2px;cursor:pointer;animation:blink 1.5s infinite;}
+  #approval-badge{display:inline-flex;align-items:center;gap:4px;background:rgba(255,170,0,.12);border:1px solid rgba(255,170,0,.3);color:#ffaa00;font-family:'Share Tech Mono',monospace;font-size:9px;font-weight:bold;padding:3px 8px;cursor:pointer;transition:all .3s;letter-spacing:1px;}
+  #approval-badge.has-pending{background:#ffaa00;color:#000;border-color:#ffaa00;animation:blink 1.2s infinite;}
+  #approval-badge .badge-dot{width:6px;height:6px;border-radius:50%;background:rgba(255,170,0,.4);flex-shrink:0;}
+  #approval-badge.has-pending .badge-dot{background:#000;}
   
   /* PHOTO MODAL */
   #photo-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.88);z-index:9999;align-items:center;justify-content:center;}
@@ -320,7 +323,7 @@
     <h1 id="hdr-title">Operations Personnel Monitor <span>// Commander</span></h1>
   </div>
   <div class="hdr-right">
-    <span id="approval-badge" onclick="toggleApprovalPanel()" title="Pending approval requests">⚠ PENDING</span>
+    <span id="approval-badge" onclick="toggleApprovalPanel()" title="Click to approve/reject login requests"><span class="badge-dot"></span>APPROVALS</span>
     <span><span class="live-dot"></span>LIVE</span>
     <span id="clock">--:--:--</span>
     <span id="online-badge">0 ONLINE</span>
@@ -1235,32 +1238,38 @@ async function fetchPendingApprovals(){
   try{
     const r = await fetch(SHEET_URL + '?action=getPending&t=' + Date.now(), {cache:'no-store'});
     const d = await r.json();
-    if(d.pending){
-      const badge = document.getElementById('approval-badge');
-      const list  = document.getElementById('approval-list');
-      if(d.pending.length > 0){
-        badge.style.display = 'inline-block';
-        badge.textContent = '\u26A0 ' + d.pending.length + ' PENDING';
-        list.innerHTML = '';
-        d.pending.forEach(function(req){
-          const item = document.createElement('div');
-          item.className = 'ap-item';
-          item.innerHTML = '<div class="ap-name">'+req.name+'</div>'+
-            '<div class="ap-detail">'+req.team+' \u00B7 '+req.post+'</div>'+
-            '<div class="ap-detail">Requested: '+req.time+'</div>'+
-            '<div class="ap-btns">'+
-              '<button class="ap-approve" onclick="handleApproval(\'' +req.deviceId+'\',\'approve\',this)">\u2713 APPROVE</button>'+
-              '<button class="ap-reject" onclick="handleApproval(\'' +req.deviceId+'\',\'reject\',this)">\u2715 REJECT</button>'+
-            '</div>';
-          list.appendChild(item);
-        });
-        document.getElementById('approval-panel').style.display = 'block';
-      } else {
-        badge.style.display = 'none';
-        list.innerHTML = '<div style="padding:10px;font-family:\'Share Tech Mono\',monospace;font-size:10px;color:var(--dim);">No pending requests.</div>';
-      }
+    const badge = document.getElementById('approval-badge');
+    const list  = document.getElementById('approval-list');
+    if(!d.pending) return;
+
+    if(d.pending.length > 0){
+      // Make badge glow amber and show count
+      badge.classList.add('has-pending');
+      badge.innerHTML = '<span class="badge-dot"></span>&#x26A0; ' + d.pending.length + ' APPROVAL' + (d.pending.length>1?'S':'');
+      // Auto-open panel when new request comes in
+      document.getElementById('approval-panel').style.display = 'block';
+      // Render request list
+      list.innerHTML = '';
+      d.pending.forEach(function(req){
+        const item = document.createElement('div');
+        item.className = 'ap-item';
+        item.innerHTML =
+          '<div class="ap-name">' + req.name + '</div>' +
+          '<div class="ap-detail">' + req.team + ' &nbsp;&middot;&nbsp; ' + req.post + '</div>' +
+          '<div class="ap-detail">Requested: ' + req.time + '</div>' +
+          '<div class="ap-btns">' +
+            '<button class="ap-approve" onclick="handleApproval('' + req.deviceId + '','approve',this)">&#x2713; APPROVE</button>' +
+            '<button class="ap-reject"  onclick="handleApproval('' + req.deviceId + '','reject',this)">&#x2715; REJECT</button>' +
+          '</div>';
+        list.appendChild(item);
+      });
+    } else {
+      // No pending — badge goes back to quiet state
+      badge.classList.remove('has-pending');
+      badge.innerHTML = '<span class="badge-dot"></span>APPROVALS';
+      list.innerHTML = '<div style="padding:12px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);">No pending requests.</div>';
     }
-  }catch(e){}
+  }catch(e){ console.log('[OPM] fetchPendingApprovals error:', e.message); }
 }
 
 async function handleApproval(deviceId, action, btn){
@@ -1482,6 +1491,18 @@ async function handleApproval(deviceId, action, btn){
       <div style="font-size:7px;color:#c0d8f0;font-family:'Share Tech Mono',monospace;opacity:0.55;letter-spacing:0.4px;white-space:nowrap;text-shadow:0 0 4px rgba(0,0,0,0.9);">&nbsp;&middot;&nbsp; JOEY SABENACIO HEREDERO &nbsp;&middot;&nbsp; 09468206576 &nbsp;&middot;&nbsp; joeyherederopal@gmail.com &nbsp;&nbsp; &copy; 2026</div>
     </div>
   </div>
+  </div>
+
+
+  <!-- APPROVAL PANEL — fixed top-right dropdown -->
+  <div id="approval-panel" style="display:none;position:fixed;top:58px;right:10px;z-index:9100;width:310px;background:rgba(4,8,18,.98);border:1px solid #ffaa00;box-shadow:0 4px 24px rgba(255,170,0,.25);">
+    <div style="background:rgba(255,170,0,.1);padding:8px 12px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid rgba(255,170,0,.25);">
+      <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:#ffaa00;letter-spacing:1px;">&#x26A0; PENDING LOGIN REQUESTS</span>
+      <span onclick="document.getElementById('approval-panel').style.display='none'" style="cursor:pointer;color:#888;font-size:18px;line-height:1;padding:0 4px;">&#x2715;</span>
+    </div>
+    <div id="approval-list" style="max-height:320px;overflow-y:auto;padding:8px;">
+      <div style="padding:10px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);text-align:center;">No pending requests.</div>
+    </div>
   </div>
 
 </body>
