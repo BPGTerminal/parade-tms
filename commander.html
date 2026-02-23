@@ -1262,8 +1262,8 @@ async function fetchPendingApprovals(){
           '<div class="ap-detail">' + req.team + ' &nbsp;&middot;&nbsp; ' + req.post + '</div>' +
           '<div class="ap-detail">Requested: ' + req.time + '</div>' +
           '<div class="ap-btns">' +
-            '<button class="ap-approve" onclick="handleApproval('' + req.deviceId + '','approve',this)">&#x2713; APPROVE</button>' +
-            '<button class="ap-reject"  onclick="handleApproval('' + req.deviceId + '','reject',this)">&#x2715; REJECT</button>' +
+            '<button class="ap-approve" onclick="handleApproval(\'' + req.deviceId + '\',\'approve\',this)">&#x2713; APPROVE</button>' +
+            '<button class="ap-reject"  onclick="handleApproval(\'' + req.deviceId + '\',\'reject\',this)">&#x2715; REJECT</button>' +
           '</div>';
         list.appendChild(item);
       });
@@ -1271,7 +1271,7 @@ async function fetchPendingApprovals(){
       // No pending — badge goes back to quiet state
       badge.classList.remove('has-pending');
       badge.innerHTML = '<span class="badge-dot"></span>APPROVALS';
-      list.innerHTML = '<div style="padding:12px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);">No pending requests.</div>';
+      list.innerHTML = '<div style="padding:12px;font-family:monospace;font-size:10px;color:var(--dim);">No pending requests.</div>';
     }
   }catch(e){ console.log('[OPM] fetchPendingApprovals error:', e.message); }
 }

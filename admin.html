@@ -417,13 +417,13 @@ async function searchPlace(){
   if(!q){ alert('Please type a place name first.'); return; }
   const resultsDiv = document.getElementById('place-results');
   resultsDiv.style.display = 'block';
-  resultsDiv.innerHTML = '<div style="padding:8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);">🔍 Searching...</div>';
+  resultsDiv.innerHTML = '<div style="padding:8px;font-family:monospace;font-size:10px;color:var(--dim);">&#128269; Searching...</div>';
   try{
     const url = 'https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=6&countrycodes=ph';
     const r = await fetch(url, {headers:{'Accept-Language':'en'}});
     const results = await r.json();
     if(!results.length){
-      resultsDiv.innerHTML = '<div style="padding:8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#ff6b6b;">No results found. Try a different name.</div>';
+      resultsDiv.innerHTML = '<div style="padding:8px;font-family:monospace;font-size:10px;color:#ff6b6b;">No results found. Try a different name.</div>';
       return;
     }
     resultsDiv.innerHTML = '';
@@ -433,7 +433,7 @@ async function searchPlace(){
       const lng  = parseFloat(place.lon).toFixed(6);
       const row  = document.createElement('div');
       row.style.cssText = 'padding:8px 10px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px;color:#ccc;line-height:1.4;';
-      row.innerHTML = '<span style="color:#00e5ff;font-family:'Share Tech Mono',monospace;font-size:9px;">'+lat+', '+lng+'</span><br/>'+name;
+      row.innerHTML = `<span style="color:#00e5ff;font-family:'Share Tech Mono',monospace;font-size:9px;">${lat}, ${lng}</span><br/>${name}`;
       row.onmouseover = function(){ this.style.background='rgba(0,229,255,.08)'; };
       row.onmouseout  = function(){ this.style.background='none'; };
       row.onclick = function(){
@@ -446,7 +446,7 @@ async function searchPlace(){
       resultsDiv.appendChild(row);
     });
   }catch(e){
-    resultsDiv.innerHTML = '<div style="padding:8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#ff6b6b;">Search failed. Check your internet connection.</div>';
+    resultsDiv.innerHTML = '<div style="padding:8px;font-family:monospace;font-size:10px;color:#ff6b6b;">Search failed. Check your internet connection.</div>';
   }
 }
 
