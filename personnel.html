@@ -249,23 +249,38 @@ async function refreshConfigFromSheet() {
       if(devId) localStorage.setItem('tms_device_id', devId);
       console.log('[OPM] New event detected — session cleared.');
     }
-    // Always save fresh config (teams, codes, event name) to localStorage
+    // Parse teams immediately — sheet returns it as JSON string, not array
+    let teams = cfg.teams || [];
+    if(typeof teams === 'string'){ try{ teams = JSON.parse(teams); }catch(e){ teams=[]; } }
+    cfg.teams = teams; // ensure it's always an array from here on
+
+    // Save fresh config to localStorage
     const merged = {sheetUrl:url, ...cfg};
-    if(Array.isArray(cfg.teams)) merged.teams = cfg.teams;
     localStorage.setItem('tms_config', JSON.stringify(merged));
-    // Update UI with fresh data — this is the ONLY place that populates teams
+
+    // Update event name display
     if(cfg.eventName){
       const el = document.getElementById('event-name-disp');
       if(el) el.textContent = cfg.eventName.toUpperCase();
     }
-    // Teams may be a JSON string from sheet — always parse
-    let teams = merged.teams || [];
-    if(typeof teams === 'string'){ try{ teams = JSON.parse(teams); }catch(e){ teams=[]; } }
-    merged.teams = teams;
-    localStorage.setItem('tms_config', JSON.stringify(merged)); // re-save with parsed teams
+
+    // Populate team dropdown with fresh data from sheet
     populateTeams(teams);
-    console.log('[OPM] Config loaded — teams:', teams.map(t=>t.name).join(', '));
-  } catch(e){ console.log('Config refresh error:',e.message); }
+    console.log('[OPM] Config loaded — event:', cfg.eventName, '| teams:', teams.map(t=>t.name).join(', '));
+  } catch(e){
+    console.log('[OPM] Config refresh failed:', e.message, '— using cached config');
+    // Still populate teams from cache so dropdown is not empty
+    try {
+      const cached = JSON.parse(localStorage.getItem('tms_config')||'{}');
+      let cachedTeams = cached.teams || [];
+      if(typeof cachedTeams === 'string') cachedTeams = JSON.parse(cachedTeams);
+      if(cachedTeams.length > 0) populateTeams(cachedTeams);
+      if(cached.eventName){
+        const el = document.getElementById('event-name-disp');
+        if(el) el.textContent = cached.eventName.toUpperCase();
+      }
+    } catch(e2){}
+  }
 }
 
 const CFG = loadConfig();
@@ -713,6 +728,17 @@ function checkMeetBroadcast(messages){
 }
 
 document.addEventListener('DOMContentLoaded', async function(){
+  // If cached config has no sheetUrl (old format) — wipe it so we start fresh
+  try{
+    const cached = JSON.parse(localStorage.getItem('tms_config')||'{}');
+    if(!cached.sheetUrl){
+      const devId = localStorage.getItem('tms_device_id');
+      localStorage.clear();
+      if(devId) localStorage.setItem('tms_device_id', devId);
+      console.log('[OPM] Stale cache detected and wiped.');
+    }
+  }catch(e){ localStorage.removeItem('tms_config'); }
+
   await refreshConfigFromSheet(); // Always get latest event/teams FIRST
   init();
 });
