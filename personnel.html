@@ -231,61 +231,53 @@ function loadConfig(){
 async function refreshConfigFromSheet() {
   const sel = document.getElementById('l-team');
   const evDisp = document.getElementById('event-name-disp');
-  if(sel){ sel.innerHTML = '<option value="">⏳ Loading teams...</option>'; }
-  if(evDisp){ evDisp.style.color='#ffaa00'; evDisp.textContent = 'Connecting to server...'; }
+  if(sel) sel.innerHTML = '<option value="">⏳ Loading...</option>';
+  if(evDisp){ evDisp.style.color='#ffaa00'; evDisp.textContent = 'Connecting...'; }
+
+  // Try Apps Script first
   try {
-    const url = HARDCODED_URL;
-    const res = await fetch(url + '?action=getSettings&t='+Date.now(), {cache:'no-store'});
-    const data = await res.json();
-    const cfg = data.settings;
-    if(!cfg){
-      if(sel) sel.innerHTML = '<option value="">⚠ Server returned empty — check Apps Script</option>';
-      if(evDisp){ evDisp.style.color='#ff3b5c'; evDisp.textContent = '⚠ Server error — contact admin'; }
+    const res = await fetch(HARDCODED_URL + '?action=getSettings&t=' + Date.now(), {cache:'no-store'});
+    const raw = await res.text();
+    console.log('[OPM] Server raw:', raw.substring(0,300));
+    const data = JSON.parse(raw);
+
+    // Apps Script may return {settings:null} or {status:'ok'} without settings
+    if(data && data.settings && data.settings.teams){
+      const cfg = data.settings;
+      let teams = cfg.teams;
+      if(typeof teams === 'string') teams = JSON.parse(teams);
+      if(Array.isArray(teams) && teams.length > 0){
+        cfg.teams = teams;
+        localStorage.setItem('tms_config', JSON.stringify({sheetUrl:HARDCODED_URL, ...cfg}));
+        if(cfg.eventName && evDisp) evDisp.textContent = cfg.eventName.toUpperCase();
+        populateTeams(teams);
+        console.log('[OPM] Teams loaded from server:', teams.map(t=>t.name).join(', '));
+        return; // success — done
+      }
+    }
+    console.warn('[OPM] Server returned no teams. data=', JSON.stringify(data).substring(0,200));
+  } catch(e){
+    console.warn('[OPM] Server fetch failed:', e.message);
+  }
+
+  // Fallback: use whatever is in localStorage from a previous successful load
+  try {
+    const cached = JSON.parse(localStorage.getItem('tms_config')||'{}');
+    let teams = cached.teams || [];
+    if(typeof teams === 'string') teams = JSON.parse(teams);
+    if(Array.isArray(teams) && teams.length > 0){
+      if(cached.eventName && evDisp) evDisp.textContent = cached.eventName.toUpperCase();
+      populateTeams(teams);
+      console.log('[OPM] Teams loaded from cache:', teams.map(t=>t.name).join(', '));
+      if(evDisp){ evDisp.style.color='#ffaa00'; evDisp.textContent += ' (offline)'; }
       return;
     }
-    const oldCfg = JSON.parse(localStorage.getItem('tms_config')||'{}');
-    // Detect event name change — wipe cached login session
-    if(oldCfg.eventName && cfg.eventName && oldCfg.eventName !== cfg.eventName){
-      const devId = localStorage.getItem('tms_device_id');
-      localStorage.clear();
-      if(devId) localStorage.setItem('tms_device_id', devId);
-      console.log('[OPM] New event detected — session cleared.');
-    }
-    // Parse teams immediately — sheet returns it as JSON string, not array
-    let teams = cfg.teams || [];
-    if(typeof teams === 'string'){ try{ teams = JSON.parse(teams); }catch(e){ teams=[]; } }
-    cfg.teams = teams; // ensure it's always an array from here on
+  } catch(e2){}
 
-    // Save fresh config to localStorage
-    const merged = {sheetUrl:url, ...cfg};
-    localStorage.setItem('tms_config', JSON.stringify(merged));
-
-    // Update event name display
-    if(cfg.eventName){
-      const el = document.getElementById('event-name-disp');
-      if(el) el.textContent = cfg.eventName.toUpperCase();
-    }
-
-    // Populate team dropdown with fresh data from sheet
-    populateTeams(teams);
-    if(evDisp){ evDisp.style.color=''; } // reset colour — textContent already set above
-    console.log('[OPM] ✓ Config loaded — event:', cfg.eventName, '| teams:', teams.map(t=>t.name).join(', '));
-  } catch(e){
-    console.log('[OPM] Config refresh failed:', e.message);
-    if(sel) sel.innerHTML = '<option value="">⚠ Network error — check connection</option>';
-    if(evDisp){ evDisp.style.color='#ff3b5c'; evDisp.textContent = '⚠ Cannot reach server. Check your internet connection.'; }
-    // Still populate teams from cache so dropdown is not empty
-    try {
-      const cached = JSON.parse(localStorage.getItem('tms_config')||'{}');
-      let cachedTeams = cached.teams || [];
-      if(typeof cachedTeams === 'string') cachedTeams = JSON.parse(cachedTeams);
-      if(cachedTeams.length > 0) populateTeams(cachedTeams);
-      if(cached.eventName){
-        const el = document.getElementById('event-name-disp');
-        if(el) el.textContent = cached.eventName.toUpperCase();
-      }
-    } catch(e2){}
-  }
+  // Last resort: show clear error
+  if(sel) sel.innerHTML = '<option value="">⚠ Cannot reach server — retry</option>';
+  if(evDisp){ evDisp.style.color='#ff3b5c'; evDisp.textContent = '⚠ Server unreachable'; }
+  console.error('[OPM] Could not load teams from server or cache.');
 }
 
 const CFG = loadConfig();
