@@ -55,12 +55,12 @@
   .panel-hdr:hover{background:rgba(0,229,255,.1);}
   .panel-toggle{font-size:12px;color:var(--dim);transition:transform .25s;display:inline-block;}
   .panel-toggle.open{transform:rotate(180deg);}
-  /* Personnel section */
-  #personnel-section{display:flex;flex-direction:column;overflow:hidden;transition:max-height .3s ease;max-height:46%;}
-  #personnel-section.collapsed{max-height:0;overflow:hidden;}
-  /* Comms section grows when personnel is hidden */
-  #comms-section{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;transition:all .3s;}
-  #comms-section.expanded{flex:1;}
+  /* Personnel content — collapsible, never hides header */
+  #personnel-section{display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;max-height:44%;}
+  #personnel-section.hidden{display:none;}
+  /* Comms content — collapsible, never hides header */
+  #comms-section{display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;}
+  #comms-section.hidden{display:none;}
   /* TEAM FILTER */
   #team-filters{display:flex;gap:0;border-bottom:1px solid var(--border);}
   .tf-btn{flex:1;background:none;border:none;border-right:1px solid var(--border);color:var(--dim);font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:7px 4px;cursor:pointer;transition:all .2s;text-transform:uppercase;}
@@ -385,22 +385,24 @@
 </div>
 
 <aside>
-  <!-- PERSONNEL SECTION — collapsible -->
+  <!-- PERSONNEL HEADER — always visible -->
+  <div class="panel-hdr" onclick="toggleSection('personnel')" title="Click to show/hide personnel list">
+    <span>PERSONNEL <span style="color:var(--green);font-size:10px;" id="online-count">0 / 0</span></span>
+    <span id="toggle-personnel" style="font-size:11px;color:var(--dim);font-family:'Share Tech Mono',monospace;">▾</span>
+  </div>
+  <!-- PERSONNEL CONTENT — collapsible -->
   <div id="personnel-section">
-    <div class="panel-hdr" onclick="toggleSection('personnel')">
-      <span>PERSONNEL <span style="color:var(--green);font-size:10px;" id="online-count">0 / 0</span></span>
-      <span class="panel-toggle open" id="toggle-personnel">▼</span>
-    </div>
     <div id="team-filters"></div>
     <div id="personnel-list"><div class="empty">Waiting for personnel...</div></div>
   </div>
 
-  <!-- COMMS SECTION — collapsible -->
+  <!-- COMMS HEADER — always visible -->
+  <div class="panel-hdr" onclick="toggleSection('comms')" title="Click to show/hide comms log">
+    <span>COMMS LOG</span>
+    <span id="toggle-comms" style="font-size:11px;color:var(--dim);font-family:'Share Tech Mono',monospace;">▾</span>
+  </div>
+  <!-- COMMS CONTENT — collapsible -->
   <div id="comms-section">
-    <div class="panel-hdr" onclick="toggleSection('comms')">
-      <span>COMMS LOG</span>
-      <span class="panel-toggle open" id="toggle-comms">▼</span>
-    </div>
     <div id="msg-log"><div class="empty">No messages yet.</div></div>
   </div>
 
@@ -1104,45 +1106,36 @@ function toggleSection(name){
 }
 
 function applyLayout(){
-  const pSec  = document.getElementById('personnel-section');
-  const pList = document.getElementById('personnel-list');
-  const pFilt = document.getElementById('team-filters');
-  const cSec  = document.getElementById('comms-section');
-  const cLog  = document.getElementById('msg-log');
-  const tP    = document.getElementById('toggle-personnel');
-  const tC    = document.getElementById('toggle-comms');
+  const pSec = document.getElementById('personnel-section');
+  const cSec = document.getElementById('comms-section');
+  const tP   = document.getElementById('toggle-personnel');
+  const tC   = document.getElementById('toggle-comms');
 
-  // Arrow indicators
+  // Arrows always visible in headers — just change direction
   if(tP) tP.textContent = _open.personnel ? '▾' : '▸';
   if(tC) tC.textContent = _open.comms     ? '▾' : '▸';
 
-  // Both open — default split
-  if(_open.personnel && _open.comms){
-    pSec.style.cssText  = 'display:flex;flex-direction:column;overflow:hidden;flex-shrink:0;max-height:42%;';
-    pList.style.display = ''; pFilt.style.display = '';
-    cSec.style.cssText  = 'display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;';
-    cLog.style.display  = '';
+  // Personnel content
+  if(_open.personnel){
+    pSec.style.display = 'flex';
+    pSec.style.flexDirection = 'column';
+    pSec.style.overflow = 'hidden';
+    pSec.style.flexShrink = '0';
+    // Give personnel more height when comms is closed
+    pSec.style.maxHeight = _open.comms ? '44%' : 'calc(100% - 130px)';
+  } else {
+    pSec.style.display = 'none';
   }
-  // Personnel open, comms closed — personnel takes all space
-  else if(_open.personnel && !_open.comms){
-    pSec.style.cssText  = 'display:flex;flex-direction:column;overflow:hidden;flex:1;max-height:none;';
-    pList.style.display = ''; pFilt.style.display = '';
-    cSec.style.cssText  = 'display:flex;flex-direction:column;flex:0;overflow:hidden;min-height:0;';
-    cLog.style.display  = 'none';
-  }
-  // Comms open, personnel closed — comms takes all space
-  else if(!_open.personnel && _open.comms){
-    pSec.style.cssText  = 'display:flex;flex-direction:column;overflow:hidden;flex:0;max-height:none;';
-    pList.style.display = 'none'; pFilt.style.display = 'none';
-    cSec.style.cssText  = 'display:flex;flex-direction:column;flex:1;overflow:hidden;min-height:0;';
-    cLog.style.display  = '';
-  }
-  // Both closed — nothing shown, compose and video still accessible
-  else {
-    pSec.style.cssText  = 'display:flex;flex-direction:column;overflow:hidden;flex:0;';
-    pList.style.display = 'none'; pFilt.style.display = 'none';
-    cSec.style.cssText  = 'display:flex;flex-direction:column;flex:0;overflow:hidden;';
-    cLog.style.display  = 'none';
+
+  // Comms content
+  if(_open.comms){
+    cSec.style.display = 'flex';
+    cSec.style.flexDirection = 'column';
+    cSec.style.flex = '1';
+    cSec.style.overflow = 'hidden';
+    cSec.style.minHeight = '0';
+  } else {
+    cSec.style.display = 'none';
   }
 }
 
