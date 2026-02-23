@@ -258,9 +258,13 @@ async function refreshConfigFromSheet() {
       const el = document.getElementById('event-name-disp');
       if(el) el.textContent = cfg.eventName.toUpperCase();
     }
-    // Always repopulate teams from server (catches code/name changes even without event rename)
-    populateTeams(merged.teams || []);
-    console.log('[OPM] Config loaded — teams:', (merged.teams||[]).map(t=>t.name).join(', '));
+    // Teams may be a JSON string from sheet — always parse
+    let teams = merged.teams || [];
+    if(typeof teams === 'string'){ try{ teams = JSON.parse(teams); }catch(e){ teams=[]; } }
+    merged.teams = teams;
+    localStorage.setItem('tms_config', JSON.stringify(merged)); // re-save with parsed teams
+    populateTeams(teams);
+    console.log('[OPM] Config loaded — teams:', teams.map(t=>t.name).join(', '));
   } catch(e){ console.log('Config refresh error:',e.message); }
 }
 

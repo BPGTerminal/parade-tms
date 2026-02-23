@@ -32,20 +32,21 @@
   /* HEADER */
   header{
     grid-column:1/-1;background:var(--panel);border-bottom:1px solid var(--border);
-    display:flex;align-items:center;justify-content:space-between;padding:0 16px;
+    display:flex;align-items:center;justify-content:space-between;padding:0 12px;
+    height:54px;overflow:hidden;flex-wrap:nowrap;
   }
-  .hdr-left{display:flex;align-items:center;gap:10px;}
+  .hdr-left{display:flex;align-items:center;gap:8px;min-width:0;flex:1;overflow:hidden;}
   .eoc-badge{background:var(--accent);color:#000;font-family:'Share Tech Mono',monospace;font-size:11px;font-weight:bold;padding:3px 8px;letter-spacing:1px;}
-  header h1{font-size:17px;font-weight:700;letter-spacing:2px;color:#fff;text-transform:uppercase;}
+  header h1{font-size:13px;font-weight:700;letter-spacing:1px;color:#fff;text-transform:uppercase;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;}
   header h1 span{color:var(--accent);}
-  .hdr-right{display:flex;align-items:center;gap:18px;font-family:'Share Tech Mono',monospace;font-size:12px;}
+  .hdr-right{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:10px;flex-shrink:0;white-space:nowrap;}
   #clock{color:var(--accent);letter-spacing:1px;}
   .live-dot{width:8px;height:8px;border-radius:50%;background:var(--green);display:inline-block;margin-right:5px;animation:blink 1.5s infinite;}
   @keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}
   .admin-link{color:var(--dim);text-decoration:none;font-size:11px;letter-spacing:1px;border:1px solid var(--border);padding:3px 8px;transition:all .2s;}
   .admin-link:hover{color:var(--accent);border-color:var(--accent);}
   /* MAP */
-  #map{background:#07101f;padding-bottom:46px;}
+  #map{background:#07101f;position:relative;}
   .leaflet-tile{filter:brightness(.7) saturate(.5) hue-rotate(200deg);}
   .leaflet-tile.satellite{filter:none;}
   .leaflet-tile.plain{filter:none;}
@@ -644,7 +645,10 @@ function setHazardOpacity(val){
 }
 
 function initMap(){
-  map = L.map('map',{zoomControl:true}).setView([CFG.lat, CFG.lng], 15);
+  // Parse as float — localStorage round-trips values as strings
+  const lat = parseFloat(CFG.lat) || 8.7891;
+  const lng = parseFloat(CFG.lng) || 117.8370;
+  map = L.map('map',{zoomControl:true}).setView([lat, lng], 15);
   setLayer('street');
 }
 
@@ -1125,7 +1129,7 @@ async function checkEventVersion(){
 }
 
 function clearLocalCache(){
-  // Wipe comms log and personnel from memory + localStorage
+  // Wipe ONLY comms log — keep tms_config (has sheetUrl, lat/lng, teams)
   logEntries = [];
   localStorage.removeItem('parade_log_session');
   personnelData = {};
@@ -1140,7 +1144,7 @@ function clearLocalCache(){
   if(oc) oc.textContent = '0 / 0';
   const ob = document.getElementById('online-badge');
   if(ob) ob.textContent = '0 ONLINE';
-  console.log('[OPM] Local cache cleared.');
+  console.log('[OPM] Local cache cleared (config preserved).');
 }
 
 // ============================================================
