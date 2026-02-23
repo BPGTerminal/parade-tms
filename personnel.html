@@ -211,6 +211,49 @@
 // Falls back to hardcoded defaults
 // ============================================================
 const HARDCODED_URL = "https://script.google.com/macros/s/AKfycbwPQzBODQphcsr5XGbCnUdi542wxJOtcJPkSpl9FCyERs_8biTtPgOrN4vLGNXv00phjQ/exec";
+const SETTINGS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRlQs82HFoGocI8HRCWtQoYU7GyqbOgT-08xMv28X8XK81LL2SoGzN2_m8ndx20aiZgigPUf7IVPefq/pub?gid=1673148562&single=true&output=csv";
+
+// Parse Settings sheet CSV into config object
+function parseSettingsCSV(csvText) {
+  const cfg = {};
+  const lines = csvText.trim().split('\n');
+  lines.forEach(line => {
+    // Handle CSV with possible quoted fields
+    const cols = line.match(/(".*?"|[^,]+|(?<=,)(?=,)|^(?=,)|(?<=,)$)/g) || [];
+    const key = (cols[0]||'').replace(/^"|"$/g,'').trim();
+    const val = (cols[1]||'').replace(/^"|"$/g,'').trim();
+    if(!key || key==='Key') return;
+    if(val.startsWith('[') || val.startsWith('{')) {
+      try{ cfg[key] = JSON.parse(val); }catch(e){ cfg[key]=val; }
+    } else {
+      cfg[key] = val;
+    }
+  });
+  return cfg;
+}
+// Settings sheet published as CSV — no Apps Script, no CORS, works on any device
+const SETTINGS_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRlQs82HFoGocI8HRCWtQoYU7GyqbOgT-08xMv28X8XK81LL2SoGzN2_m8ndx20aiZgigPUf7IVPefq/pub?gid=1673148562&single=true&output=csv";
+
+// Parse the Settings CSV (key,value rows) into a config object
+async function fetchSettingsFromCSV() {
+  const res = await fetch(SETTINGS_CSV_URL + '&t=' + Date.now(), {cache:'no-store'});
+  const text = await res.text();
+  console.log('[OPM] CSV raw:', text.substring(0,300));
+  const cfg = {};
+  text.trim().split('\n').forEach(line => {
+    // Handle quoted CSV values
+    const m = line.match(/^"?([^",]+)"?,(.*)$/);
+    if(!m) return;
+    const key = m[1].trim();
+    let val = m[2].trim().replace(/^"|"$/g,'');
+    if(val.startsWith('[') || val.startsWith('{')) {
+      try{ val = JSON.parse(val); }catch(e){}
+    }
+    cfg[key] = val;
+  });
+  console.log('[OPM] CSV parsed keys:', Object.keys(cfg).join(', '));
+  return cfg;
+}
 
 // JSONP fetch — bypasses CORS, works from any domain with Google Apps Script
 function fetchJSONP(url, timeout=10000){
@@ -263,21 +306,25 @@ async function refreshConfigFromSheet() {
 
   // Then fetch fresh from server in background
   try {
-    const data = await fetchJSONP(HARDCODED_URL + '?action=getSettings');
-    const cfg = data && data.settings;
-    if(cfg){
-      let teams = cfg.teams || [];
+    // Read Settings directly from published Google Sheet CSV — no CORS, no Apps Script needed
+    const csvRes = await fetch(SETTINGS_CSV + '&t=' + Date.now(), {cache:'no-store'});
+    const csvText = await csvRes.text();
+    console.log('[OPM] CSV received, length:', csvText.length);
+    const cfg = parseSettingsCSV(csvText);
+    console.log('[OPM] Config parsed:', JSON.stringify(cfg).substring(0,200));
+    if(cfg && cfg.teams){
+      let teams = cfg.teams;
       if(typeof teams === 'string') teams = JSON.parse(teams);
       if(Array.isArray(teams) && teams.length > 0){
         cfg.teams = teams;
         localStorage.setItem('tms_config', JSON.stringify({sheetUrl:HARDCODED_URL, ...cfg}));
         if(cfg.eventName && evDisp) evDisp.textContent = cfg.eventName.toUpperCase();
         populateTeams(teams);
-        console.log('[OPM] Teams loaded from server:', teams.map(t=>t.name).join(', '));
+        console.log('[OPM] Teams loaded:', teams.map(t=>t.name).join(', '));
         return;
       }
     }
-    console.warn('[OPM] Server returned no teams:', JSON.stringify(data).substring(0,100));
+    console.warn('[OPM] CSV had no teams. Raw:', csvText.substring(0,200));
   } catch(e){
     console.warn('[OPM] Server fetch failed:', e.message);
   }
