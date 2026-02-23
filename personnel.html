@@ -229,16 +229,18 @@ function loadConfig(){
 // Refresh config from Sheet — called on every page load BEFORE login renders
 // This ensures phones always see latest event name, teams and access codes
 async function refreshConfigFromSheet() {
-  // Show loading state on team dropdown
   const sel = document.getElementById('l-team');
+  const evDisp = document.getElementById('event-name-disp');
   if(sel){ sel.innerHTML = '<option value="">⏳ Loading teams...</option>'; }
+  if(evDisp){ evDisp.style.color='#ffaa00'; evDisp.textContent = 'Connecting to server...'; }
   try {
     const url = HARDCODED_URL;
     const res = await fetch(url + '?action=getSettings&t='+Date.now(), {cache:'no-store'});
     const data = await res.json();
     const cfg = data.settings;
     if(!cfg){
-      if(sel) sel.innerHTML = '<option value="">⚠ Could not load teams — retry</option>';
+      if(sel) sel.innerHTML = '<option value="">⚠ Server returned empty — check Apps Script</option>';
+      if(evDisp){ evDisp.style.color='#ff3b5c'; evDisp.textContent = '⚠ Server error — contact admin'; }
       return;
     }
     const oldCfg = JSON.parse(localStorage.getItem('tms_config')||'{}');
@@ -266,9 +268,12 @@ async function refreshConfigFromSheet() {
 
     // Populate team dropdown with fresh data from sheet
     populateTeams(teams);
-    console.log('[OPM] Config loaded — event:', cfg.eventName, '| teams:', teams.map(t=>t.name).join(', '));
+    if(evDisp){ evDisp.style.color=''; } // reset colour — textContent already set above
+    console.log('[OPM] ✓ Config loaded — event:', cfg.eventName, '| teams:', teams.map(t=>t.name).join(', '));
   } catch(e){
-    console.log('[OPM] Config refresh failed:', e.message, '— using cached config');
+    console.log('[OPM] Config refresh failed:', e.message);
+    if(sel) sel.innerHTML = '<option value="">⚠ Network error — check connection</option>';
+    if(evDisp){ evDisp.style.color='#ff3b5c'; evDisp.textContent = '⚠ Cannot reach server. Check your internet connection.'; }
     // Still populate teams from cache so dropdown is not empty
     try {
       const cached = JSON.parse(localStorage.getItem('tms_config')||'{}');
