@@ -122,11 +122,37 @@ input[type=color]{width:44px;height:36px;border:1px solid var(--border);backgrou
   <div class="section">
     <div class="sec-head">🗺️ MAP DEFAULT CENTER</div>
     <div class="sec-body">
-      <div class="info-box warn">💡 To get coordinates: Open Google Maps, right-click your location, copy the numbers shown (Latitude first, Longitude second).</div>
-      <div class="row2">
-        <div class="field"><label>LATITUDE</label><input type="number" id="cfg-lat" step="0.0001" placeholder="8.7891"/></div>
-        <div class="field"><label>LONGITUDE</label><input type="number" id="cfg-lng" step="0.0001" placeholder="117.8370"/></div>
+
+      <!-- OPTION 1: Use current device location -->
+      <button type="button" onclick="useMyLocation()" id="gps-btn" style="width:100%;background:rgba(0,255,136,.08);border:1px solid #00ff88;color:#00ff88;font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:10px;cursor:pointer;margin-bottom:10px;transition:all .2s;" onmouseover="this.style.background='rgba(0,255,136,.18)'" onmouseout="this.style.background='rgba(0,255,136,.08)'">
+        📍 USE MY CURRENT LOCATION
+      </button>
+
+      <!-- OPTION 2: Search by place name -->
+      <div class="field">
+        <label>SEARCH BY PLACE NAME</label>
+        <div style="display:flex;gap:6px;">
+          <input type="text" id="place-search" placeholder="e.g. Brooke's Point, Palawan" style="flex:1;" onkeydown="if(event.key==='Enter'){event.preventDefault();searchPlace();}"/>
+          <button type="button" onclick="searchPlace()" style="background:rgba(0,229,255,.1);border:1px solid var(--accent);color:var(--accent);font-family:'Share Tech Mono',monospace;font-size:10px;padding:6px 14px;cursor:pointer;white-space:nowrap;flex-shrink:0;">🔍 SEARCH</button>
+        </div>
+        <div id="place-results" style="display:none;margin-top:6px;background:rgba(0,0,0,.4);border:1px solid var(--border);max-height:160px;overflow-y:auto;"></div>
       </div>
+
+      <!-- Coordinates (auto-filled, still editable) -->
+      <div class="row2" style="margin-top:8px;">
+        <div class="field">
+          <label>LATITUDE <span style="color:var(--dim);font-size:9px;">(auto-filled)</span></label>
+          <input type="number" id="cfg-lat" step="0.00001" placeholder="8.78910"/>
+        </div>
+        <div class="field">
+          <label>LONGITUDE <span style="color:var(--dim);font-size:9px;">(auto-filled)</span></label>
+          <input type="number" id="cfg-lng" step="0.00001" placeholder="117.83700"/>
+        </div>
+      </div>
+      <div id="location-confirm" style="display:none;font-family:'Share Tech Mono',monospace;font-size:10px;color:#00ff88;padding:6px 0 2px;">
+        ✓ <span id="location-confirm-text"></span>
+      </div>
+
     </div>
   </div>
 
@@ -345,6 +371,98 @@ async function runUtil(action) {
     alert('Please run '+action+'() manually in the Apps Script editor.');
   }
 }
+
+// ============================================================
+// LOCATION PICKER — GPS + Place Name Search
+// ============================================================
+function useMyLocation(){
+  const btn = document.getElementById('gps-btn');
+  if(!navigator.geolocation){ alert('Geolocation not supported on this browser.'); return; }
+  btn.textContent = '⏳ GETTING YOUR LOCATION...';
+  btn.disabled = true;
+  navigator.geolocation.getCurrentPosition(
+    function(pos){
+      const lat = pos.coords.latitude.toFixed(6);
+      const lng = pos.coords.longitude.toFixed(6);
+      document.getElementById('cfg-lat').value = lat;
+      document.getElementById('cfg-lng').value = lng;
+      btn.textContent = '✓ LOCATION SET FROM GPS';
+      btn.style.color = '#00ff88';
+      btn.disabled = false;
+      // Reverse geocode to get place name
+      fetch('https://nominatim.openstreetmap.org/reverse?lat='+lat+'&lon='+lng+'&format=json')
+        .then(r=>r.json()).then(d=>{
+          const name = d.display_name ? d.display_name.split(',').slice(0,3).join(', ') : lat+', '+lng;
+          showLocationConfirm(name, lat, lng);
+          btn.textContent = '📍 USE MY CURRENT LOCATION';
+          btn.style.color = '#00ff88';
+        }).catch(()=>{
+          showLocationConfirm(lat+', '+lng, lat, lng);
+          btn.textContent = '📍 USE MY CURRENT LOCATION';
+        });
+    },
+    function(err){
+      btn.textContent = '📍 USE MY CURRENT LOCATION';
+      btn.disabled = false;
+      const msgs = {1:'Location access denied — please allow location in browser settings.',2:'Location unavailable.',3:'Location request timed out.'};
+      alert(msgs[err.code]||'Could not get location.');
+    },
+    {enableHighAccuracy:true, timeout:12000}
+  );
+}
+
+let _searchTimer = null;
+async function searchPlace(){
+  const q = document.getElementById('place-search').value.trim();
+  if(!q){ alert('Please type a place name first.'); return; }
+  const resultsDiv = document.getElementById('place-results');
+  resultsDiv.style.display = 'block';
+  resultsDiv.innerHTML = '<div style="padding:8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--dim);">🔍 Searching...</div>';
+  try{
+    const url = 'https://nominatim.openstreetmap.org/search?q='+encodeURIComponent(q)+'&format=json&limit=6&countrycodes=ph';
+    const r = await fetch(url, {headers:{'Accept-Language':'en'}});
+    const results = await r.json();
+    if(!results.length){
+      resultsDiv.innerHTML = '<div style="padding:8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#ff6b6b;">No results found. Try a different name.</div>';
+      return;
+    }
+    resultsDiv.innerHTML = '';
+    results.forEach(function(place){
+      const name = place.display_name;
+      const lat  = parseFloat(place.lat).toFixed(6);
+      const lng  = parseFloat(place.lon).toFixed(6);
+      const row  = document.createElement('div');
+      row.style.cssText = 'padding:8px 10px;cursor:pointer;border-bottom:1px solid rgba(255,255,255,.05);font-size:11px;color:#ccc;line-height:1.4;';
+      row.innerHTML = '<span style="color:#00e5ff;font-family:'Share Tech Mono',monospace;font-size:9px;">'+lat+', '+lng+'</span><br/>'+name;
+      row.onmouseover = function(){ this.style.background='rgba(0,229,255,.08)'; };
+      row.onmouseout  = function(){ this.style.background='none'; };
+      row.onclick = function(){
+        document.getElementById('cfg-lat').value = lat;
+        document.getElementById('cfg-lng').value = lng;
+        document.getElementById('place-search').value = name.split(',').slice(0,2).join(',');
+        resultsDiv.style.display = 'none';
+        showLocationConfirm(name.split(',').slice(0,3).join(','), lat, lng);
+      };
+      resultsDiv.appendChild(row);
+    });
+  }catch(e){
+    resultsDiv.innerHTML = '<div style="padding:8px;font-family:'Share Tech Mono',monospace;font-size:10px;color:#ff6b6b;">Search failed. Check your internet connection.</div>';
+  }
+}
+
+function showLocationConfirm(name, lat, lng){
+  const div = document.getElementById('location-confirm');
+  const txt = document.getElementById('location-confirm-text');
+  txt.textContent = name + '  [' + lat + ', ' + lng + ']';
+  div.style.display = 'block';
+}
+
+// Close search results when clicking outside
+document.addEventListener('click', function(e){
+  const pr = document.getElementById('place-results');
+  const ps = document.getElementById('place-search');
+  if(pr && !pr.contains(e.target) && e.target !== ps) pr.style.display = 'none';
+});
 </script>
 </body>
 </html>

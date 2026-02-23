@@ -241,23 +241,26 @@ async function refreshConfigFromSheet() {
     const data = await res.json();
     const cfg = data.settings;
     if (!cfg) return;
-    // Detect event name change — if different, wipe old cached session
     const oldCfg = JSON.parse(localStorage.getItem('tms_config')||'{}');
+    // Detect event name change — wipe cached login session
     if(oldCfg.eventName && cfg.eventName && oldCfg.eventName !== cfg.eventName){
-      // New event — clear old login session but keep device ID
       const devId = localStorage.getItem('tms_device_id');
       localStorage.clear();
       if(devId) localStorage.setItem('tms_device_id', devId);
+      console.log('[OPM] New event detected — session cleared.');
     }
+    // Always save fresh config (teams, codes, event name) to localStorage
     const merged = {sheetUrl:url, ...cfg};
-    if (Array.isArray(cfg.teams)) merged.teams = cfg.teams;
+    if(Array.isArray(cfg.teams)) merged.teams = cfg.teams;
     localStorage.setItem('tms_config', JSON.stringify(merged));
-    // Re-populate UI with fresh data
+    // Update UI with fresh data — this is the ONLY place that populates teams
     if(cfg.eventName){
       const el = document.getElementById('event-name-disp');
       if(el) el.textContent = cfg.eventName.toUpperCase();
     }
+    // Always repopulate teams from server (catches code/name changes even without event rename)
     populateTeams(merged.teams || []);
+    console.log('[OPM] Config loaded — teams:', (merged.teams||[]).map(t=>t.name).join(', '));
   } catch(e){ console.log('Config refresh error:',e.message); }
 }
 
@@ -284,11 +287,14 @@ function populateTeams(teams){
 }
 
 function init(){
-  // Always use freshest config from localStorage (just set by refreshConfigFromSheet)
+  // Event name display — already set by refreshConfigFromSheet, just ensure it's shown
   const cfg = JSON.parse(localStorage.getItem('tms_config')||'{}');
   const ename = cfg.eventName || CFG.eventName || '';
-  if(ename) document.getElementById('event-name-disp').textContent = ename.toUpperCase();
-  populateTeams(cfg.teams || CFG.teams || []);
+  if(ename){
+    const el = document.getElementById('event-name-disp');
+    if(el) el.textContent = ename.toUpperCase();
+  }
+  // DO NOT call populateTeams here — refreshConfigFromSheet already did it with fresh data
   document.getElementById('l-code').addEventListener('keydown',e=>{ if(e.key==='Enter') doLogin(); });
   document.getElementById('msg-input').addEventListener('keydown',e=>{ if(e.key==='Enter') sendMsg(); });
 }
@@ -310,8 +316,9 @@ function doLogin(){
   if(!teamName){ alert('Please select your team.'); return; }
   if(!post){ alert('Please enter your assigned post.'); return; }
 
+  // Always read teams from localStorage — refreshConfigFromSheet keeps it fresh
   const cfg = JSON.parse(localStorage.getItem('tms_config')||'{}');
-  const teams = cfg.teams || CFG.teams || [];
+  const teams = Array.isArray(cfg.teams) ? cfg.teams : (CFG.teams || []);
   const team = teams.find(t=>t.name===teamName);
   if(!team || code !== team.code){
     err.style.display='block';
