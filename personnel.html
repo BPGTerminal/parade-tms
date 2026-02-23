@@ -212,6 +212,27 @@
 // ============================================================
 const HARDCODED_URL = "https://script.google.com/macros/s/AKfycbwPQzBODQphcsr5XGbCnUdi542wxJOtcJPkSpl9FCyERs_8biTtPgOrN4vLGNXv00phjQ/exec";
 
+// JSONP fetch — bypasses CORS, works from any domain with Google Apps Script
+function fetchJSONP(url, timeout=10000){
+  return new Promise((resolve, reject) => {
+    const cbName = 'opm_cb_' + Date.now();
+    const script = document.createElement('script');
+    const timer = setTimeout(() => {
+      cleanup(); reject(new Error('JSONP timeout'));
+    }, timeout);
+    function cleanup(){ 
+      delete window[cbName]; 
+      if(script.parentNode) script.parentNode.removeChild(script);
+      clearTimeout(timer);
+    }
+    window[cbName] = (data) => { cleanup(); resolve(data); };
+    script.onerror = () => { cleanup(); reject(new Error('JSONP load error')); };
+    script.src = url + (url.includes('?')?'&':'?') + 'callback=' + cbName;
+    document.head.appendChild(script);
+  });
+}
+
+
 function loadConfig(){
   try {
     const s = localStorage.getItem('tms_config');
@@ -231,20 +252,21 @@ function loadConfig(){
 async function refreshConfigFromSheet() {
   const sel = document.getElementById('l-team');
   const evDisp = document.getElementById('event-name-disp');
-  if(sel) sel.innerHTML = '<option value="">⏳ Loading...</option>';
-  if(evDisp){ evDisp.style.color='#ffaa00'; evDisp.textContent = 'Connecting...'; }
 
-  // Try Apps Script first
+  // Show fallback teams IMMEDIATELY so form is usable even if server is slow/down
+  const cached = (() => { try{ return JSON.parse(localStorage.getItem('tms_config')||'{}'); }catch(e){return {};} })();
+  const initTeams = (() => { try{ let t=cached.teams||[]; if(typeof t==='string') t=JSON.parse(t); return t; }catch(e){return [];} })();
+  const initEvent = cached.eventName || '';
+  if(typeof initTeams === 'string') { try{ populateTeams(JSON.parse(initTeams)); }catch(e){ populateTeams([]); } }
+  else populateTeams(initTeams);
+  if(evDisp) evDisp.textContent = initEvent.toUpperCase();
+
+  // Then fetch fresh from server in background
   try {
-    const res = await fetch(HARDCODED_URL + '?action=getSettings&t=' + Date.now(), {cache:'no-store'});
-    const raw = await res.text();
-    console.log('[OPM] Server raw:', raw.substring(0,300));
-    const data = JSON.parse(raw);
-
-    // Apps Script may return {settings:null} or {status:'ok'} without settings
-    if(data && data.settings && data.settings.teams){
-      const cfg = data.settings;
-      let teams = cfg.teams;
+    const data = await fetchJSONP(HARDCODED_URL + '?action=getSettings');
+    const cfg = data && data.settings;
+    if(cfg){
+      let teams = cfg.teams || [];
       if(typeof teams === 'string') teams = JSON.parse(teams);
       if(Array.isArray(teams) && teams.length > 0){
         cfg.teams = teams;
@@ -252,15 +274,15 @@ async function refreshConfigFromSheet() {
         if(cfg.eventName && evDisp) evDisp.textContent = cfg.eventName.toUpperCase();
         populateTeams(teams);
         console.log('[OPM] Teams loaded from server:', teams.map(t=>t.name).join(', '));
-        return; // success — done
+        return;
       }
     }
-    console.warn('[OPM] Server returned no teams. data=', JSON.stringify(data).substring(0,200));
+    console.warn('[OPM] Server returned no teams:', JSON.stringify(data).substring(0,100));
   } catch(e){
     console.warn('[OPM] Server fetch failed:', e.message);
   }
 
-  // Fallback: use whatever is in localStorage from a previous successful load
+  // Fallback: cached teams from last successful load
   try {
     const cached = JSON.parse(localStorage.getItem('tms_config')||'{}');
     let teams = cached.teams || [];
@@ -268,16 +290,17 @@ async function refreshConfigFromSheet() {
     if(Array.isArray(teams) && teams.length > 0){
       if(cached.eventName && evDisp) evDisp.textContent = cached.eventName.toUpperCase();
       populateTeams(teams);
-      console.log('[OPM] Teams loaded from cache:', teams.map(t=>t.name).join(', '));
-      if(evDisp){ evDisp.style.color='#ffaa00'; evDisp.textContent += ' (offline)'; }
+      console.log('[OPM] Teams from cache:', teams.map(t=>t.name).join(', '));
       return;
     }
   } catch(e2){}
 
-  // Last resort: show clear error
-  if(sel) sel.innerHTML = '<option value="">⚠ Cannot reach server — retry</option>';
-  if(evDisp){ evDisp.style.color='#ff3b5c'; evDisp.textContent = '⚠ Server unreachable'; }
-  console.error('[OPM] Could not load teams from server or cache.');
+  // Server unreachable — keep whatever teams are already showing from cache
+  if(sel && sel.options.length <= 1){
+    sel.innerHTML = '<option value="">⚠ Cannot reach server — check connection</option>';
+    if(evDisp){ evDisp.style.color='#ff3b5c'; evDisp.textContent = '⚠ Server unreachable'; }
+  }
+  console.warn('[OPM] Server unreachable — using cached teams if available.');
 }
 
 const CFG = loadConfig();
