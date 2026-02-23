@@ -324,6 +324,7 @@
     <span><span class="live-dot"></span>LIVE</span>
     <span id="clock">--:--:--</span>
     <span id="online-badge">0 ONLINE</span>
+    <button onclick="confirmClearEvent()" style="background:rgba(255,59,92,.1);border:1px solid rgba(255,59,92,.4);color:#ff3b5c;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:4px 10px;cursor:pointer;margin-right:6px;transition:all .2s;" onmouseover="this.style.background='rgba(255,59,92,.25)'" onmouseout="this.style.background='rgba(255,59,92,.1)'">🗑 CLEAR EVENT</button>
     <a class="admin-link" href="admin.html">⚙ ADMIN</a>
   </div>
 </header>
@@ -524,6 +525,7 @@ function init(){
   startClock();
   fetchUpdates();
   setInterval(fetchUpdates, REFRESH);
+  setInterval(checkEventVersion, 30000); // detect server clears every 30s
   fetchPendingApprovals();
   setInterval(fetchPendingApprovals, 8000);
   // Pull fresh settings from Sheet every 30s so admin changes reflect
@@ -545,8 +547,11 @@ function init(){
   }, 10000);
   document.getElementById('cmd-input').addEventListener('keydown',e=>{ if(e.key==='Enter') sendMessage(); });
   // restore log from session
-  const saved = localStorage.getItem('parade_log_session');
-  if(saved){ JSON.parse(saved).forEach(m=>addMessage(m,false)); }
+  // Check if sheet was cleared since last session — wipe stale localStorage if so
+  checkEventVersion().then(()=>{
+    const saved = localStorage.getItem('parade_log_session');
+    if(saved){ try{ JSON.parse(saved).forEach(m=>addMessage(m,false)); }catch(e){} }
+  });
 }
 
 function updateHeader(){
@@ -1096,6 +1101,46 @@ init();
 
 // ============================================================
 // ============================================================
+// EVENT VERSION CHECK — detects server-side clear, wipes stale local cache
+// ============================================================
+let _knownVersion = localStorage.getItem('opm_event_version') || '';
+
+async function checkEventVersion(){
+  if(!SHEET_URL) return;
+  try{
+    const r = await fetch(SHEET_URL + '?action=getEventVersion&t=' + Date.now(), {cache:'no-store'});
+    const d = await r.json();
+    const serverVersion = d.version || '';
+    if(serverVersion && serverVersion !== _knownVersion){
+      // Server was cleared — wipe our local cache
+      clearLocalCache();
+      _knownVersion = serverVersion;
+      localStorage.setItem('opm_event_version', serverVersion);
+      console.log('[OPM] Event version changed — local cache cleared.');
+    }
+  }catch(e){}
+}
+
+function clearLocalCache(){
+  // Wipe comms log and personnel from memory + localStorage
+  logEntries = [];
+  localStorage.removeItem('parade_log_session');
+  personnelData = {};
+  markers && Object.values(markers).forEach(m=>{ try{ map.removeLayer(m); }catch(e){} });
+  markers = {};
+  // Clear UI
+  const log = document.getElementById('msg-log');
+  if(log) log.innerHTML = '<div class="empty">Event data cleared by Commander.</div>';
+  const pList = document.getElementById('personnel-list');
+  if(pList) pList.innerHTML = '<div class="empty">Waiting for personnel...</div>';
+  const oc = document.getElementById('online-count');
+  if(oc) oc.textContent = '0 / 0';
+  const ob = document.getElementById('online-badge');
+  if(ob) ob.textContent = '0 ONLINE';
+  console.log('[OPM] Local cache cleared.');
+}
+
+// ============================================================
 // COLLAPSIBLE PANELS
 // ============================================================
 const _open = { personnel: true, comms: true };
@@ -1147,6 +1192,42 @@ let pendingApprovals = {};
 function toggleApprovalPanel(){
   const p = document.getElementById('approval-panel');
   p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+async function confirmClearEvent(){
+  const ok = confirm(
+    'CLEAR ALL EVENT DATA?\n\n' +
+    'This will permanently delete:\n' +
+    '  • All personnel check-ins\n' +
+    '  • All comms log messages\n' +
+    '  • All pending approvals\n\n' +
+    'Settings and Video Logs will be kept.\n\n' +
+    'Type OK to confirm.'
+  );
+  if(!ok) return;
+  const btn = event.target;
+  btn.textContent = '⏳ CLEARING...';
+  btn.disabled = true;
+  try{
+    const r = await fetch(SHEET_URL, {
+      method:'POST',
+      body: JSON.stringify({ action:'clearEventData' })
+    });
+    const d = await r.json();
+    if(d.status === 'cleared'){
+      clearLocalCache();
+      btn.textContent = '✓ CLEARED';
+      btn.style.color = '#00ff88';
+      btn.style.borderColor = '#00ff88';
+      setTimeout(()=>{ btn.textContent='🗑 CLEAR EVENT'; btn.style.color='#ff3b5c'; btn.style.borderColor='rgba(255,59,92,.4)'; btn.disabled=false; }, 3000);
+      addMessage({sender:'SYSTEM',post:'',body:'✅ Event data cleared. Ready for new event.',type:'system',time:new Date().toLocaleTimeString('en-US',{hour12:false})});
+    } else {
+      throw new Error('Server error');
+    }
+  }catch(e){
+    alert('Clear failed. Try running clearEventData() manually in Apps Script editor.\nError: '+e.message);
+    btn.textContent='🗑 CLEAR EVENT'; btn.disabled=false;
+  }
 }
 
 async function fetchPendingApprovals(){
