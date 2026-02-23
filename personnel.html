@@ -218,29 +218,29 @@ function loadConfig(){
     const c = s ? JSON.parse(s) : null;
     if (c && c.sheetUrl) return c;
   } catch(e){}
+  // Return minimal defaults — teams always come from sheet, never hardcoded
   return {
-    eventName: "Pista i ang Kanyog'an",
-    eventDate: '08-23 March 2026',
-    commander: 'PAGONG',
-    lat: 8.7891, lng: 117.8370,
+    eventName: '',
     sheetUrl: HARDCODED_URL,
-    teams: [
-      {name:'PARADE TEAM',       code:'PARADE26', color:'#00e5ff'},
-      {name:'EVENT CENTER TEAM', code:'CENTER26', color:'#00ff88'},
-      {name:'MOBILE TEAM',       code:'MOBILE26', color:'#ff6b35'}
-    ]
+    teams: []
   };
 }
 
 // Refresh config from Sheet — called on every page load BEFORE login renders
 // This ensures phones always see latest event name, teams and access codes
 async function refreshConfigFromSheet() {
+  // Show loading state on team dropdown
+  const sel = document.getElementById('l-team');
+  if(sel){ sel.innerHTML = '<option value="">⏳ Loading teams...</option>'; }
   try {
-    const url = HARDCODED_URL; // always use hardcoded URL so new events load
+    const url = HARDCODED_URL;
     const res = await fetch(url + '?action=getSettings&t='+Date.now(), {cache:'no-store'});
     const data = await res.json();
     const cfg = data.settings;
-    if (!cfg) return;
+    if(!cfg){
+      if(sel) sel.innerHTML = '<option value="">⚠ Could not load teams — retry</option>';
+      return;
+    }
     const oldCfg = JSON.parse(localStorage.getItem('tms_config')||'{}');
     // Detect event name change — wipe cached login session
     if(oldCfg.eventName && cfg.eventName && oldCfg.eventName !== cfg.eventName){
@@ -728,18 +728,11 @@ function checkMeetBroadcast(messages){
 }
 
 document.addEventListener('DOMContentLoaded', async function(){
-  // If cached config has no sheetUrl (old format) — wipe it so we start fresh
-  try{
-    const cached = JSON.parse(localStorage.getItem('tms_config')||'{}');
-    if(!cached.sheetUrl){
-      const devId = localStorage.getItem('tms_device_id');
-      localStorage.clear();
-      if(devId) localStorage.setItem('tms_device_id', devId);
-      console.log('[OPM] Stale cache detected and wiped.');
-    }
-  }catch(e){ localStorage.removeItem('tms_config'); }
+  // Always wipe config cache on load — forces fresh fetch from sheet every time
+  // Device ID is kept separately so the same phone keeps its permanent ID
+  localStorage.removeItem('tms_config');
 
-  await refreshConfigFromSheet(); // Always get latest event/teams FIRST
+  await refreshConfigFromSheet(); // Fetch latest event/teams from sheet
   init();
 });
 </script>
